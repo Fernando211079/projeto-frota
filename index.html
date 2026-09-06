@@ -159,6 +159,24 @@
     margin-left:auto; background:var(--verde); color:#fff; border:none;
     border-radius:8px; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;
   }
+  .solicitacoes-painel{ margin-top:14px; }
+  .solicitacao-card{
+    border:1px solid var(--borda); border-radius:12px; padding:12px 14px;
+    margin-bottom:10px; background:#fff;
+  }
+  .solicitacao-card:last-child{ margin-bottom:0; }
+  .solicitacao-card.aprovado{ background:#f0fdf4; border-color:#86efac; }
+  .solicitacao-card.recusado{ background:#fef2f2; border-color:#fecaca; }
+  .solicitacao-topo{ display:flex; align-items:center; gap:8px; }
+  .solicitacao-topo strong{ flex:1; font-size:14px; }
+  .solicitacao-status{
+    border-radius:999px; padding:4px 8px; font-size:11px; font-weight:800;
+  }
+  .solicitacao-status.pendente{ background:#fef3c7; color:#92400e; }
+  .solicitacao-status.aprovado{ background:#22c55e; color:#fff; }
+  .solicitacao-status.recusado{ background:#e74c3c; color:#fff; }
+  .solicitacao-detalhe{ color:var(--cinza); font-size:13px; margin-top:6px; line-height:1.45; }
+  .solicitacao-detalhe strong{ color:var(--texto); }
   .progresso{
     height:3px; background:#e5e7eb; border-radius:2px; margin:12px 0 16px; overflow:hidden;
   }
@@ -751,6 +769,11 @@
         <button class="btn-primario" onclick="solicitarVeiculo()">Solicitar Veículo →</button>
       </div>
 
+      <div class="painel solicitacoes-painel" id="painel-minhas-solicitacoes" style="display:none;">
+        <div class="secao-titulo">Minhas solicitações</div>
+        <div id="lista-minhas-solicitacoes"></div>
+      </div>
+
       <div class="painel" style="padding-top:14px;">
         <div class="secao-titulo" style="margin-bottom:10px;">📅 Disponibilidade por veículo</div>
         <p style="font-size:13px;color:var(--cinza);margin-bottom:12px;">Toque em um dia <strong>livre</strong> para preencher data e veículo. Toque em um dia <strong>vermelho</strong> para ver quem reservou.</p>
@@ -1101,6 +1124,8 @@
   let veiculos = [];
   let viagens = [];
   let agendamentos = [];
+  let agendamentosCarregados = false;
+  let nomeSolicitanteAtual = localStorage.getItem('frotaSolicitanteNome') || '';
   window.veiculosMap = {};
   let viagemSelecionadaId = null;
   let viagemSelecionadaDados = null;
@@ -1126,6 +1151,9 @@
       document.getElementById('input-agendar-data').value = data;
       document.getElementById('input-agendar-hora').value = hora;
       pedirNotificacao();
+      const selectNome = document.getElementById('select-agendar-nome');
+      if(selectNome && nomeSolicitanteAtual) selectNome.value = nomeSolicitanteAtual;
+      renderMinhasSolicitacoes();
       renderCalendarios();
     }
     if(id === 'tela-admin'){
@@ -1396,6 +1424,9 @@
         sel.appendChild(opt);
       });
     });
+    if(nomeSolicitanteAtual && motoristas.some(m => m.nome === nomeSolicitanteAtual)){
+      selects[1].value = nomeSolicitanteAtual;
+    }
   }
 
   // ---------- VEÍCULOS ----------
@@ -1690,6 +1721,9 @@
     const veiculoNome = veiculoId && window.veiculosMap[veiculoId]
       ? window.veiculosMap[veiculoId].nome : 'Qualquer veículo';
 
+    nomeSolicitanteAtual = nome;
+    localStorage.setItem('frotaSolicitanteNome', nome);
+
     await addDoc(refAgendamentos, {
       nome, data, hora, veiculoId: veiculoId || null, veiculoNome,
       destino, obs, status: 'pendente', criadoEm: Date.now()
@@ -1707,11 +1741,61 @@
   }
 
   onSnapshot(query(refAgendamentos, orderBy("criadoEm")), (snap) => {
+    const anteriores = new Map(agendamentos.map(a => [a.id, a]));
     agendamentos = [];
     snap.forEach(d => agendamentos.push({ id: d.id, ...d.data() }));
+    if(agendamentosCarregados){
+      agendamentos.forEach(a => {
+        const anterior = anteriores.get(a.id);
+        if(anterior?.status !== 'aprovado' && a.status === 'aprovado' && a.nome === nomeSolicitanteAtual){
+          notificarLiberacao(a);
+        }
+        if(anterior?.status !== 'recusado' && a.status === 'recusado' && a.nome === nomeSolicitanteAtual){
+          notificarStatusAgendamento(a, 'Solicitação cancelada');
+        }
+      });
+    }
+    agendamentosCarregados = true;
     renderAgendamentos();
+    renderMinhasSolicitacoes();
     renderCalendarios();
   });
+
+  function notificarLiberacao(agendamento){
+    const veiculo = agendamento.veiculoNome || 'Veículo';
+    const corpo = `${veiculo} liberado para ${fmtDataBR(agendamento.data)} às ${agendamento.hora || '—'} — ${agendamento.destino}`;
+    if('Notification' in window && Notification.permission === 'granted'){
+      new Notification('Carro liberado', { body: corpo });
+    }
+    alert(`Carro liberado!\n${corpo}`);
+  }
+
+  function notificarStatusAgendamento(agendamento, titulo){
+    const corpo = `A solicitação para ${fmtDataBR(agendamento.data)} às ${agendamento.hora || '—'} foi cancelada.`;
+    if('Notification' in window && Notification.permission === 'granted'){
+      new Notification(titulo, { body: corpo });
+    }
+  }
+
+  function renderMinhasSolicitacoes(){
+    const painel = document.getElementById('painel-minhas-solicitacoes');
+    const lista = document.getElementById('lista-minhas-solicitacoes');
+    if(!painel || !lista) return;
+    const minhas = agendamentos.filter(a => a.nome === nomeSolicitanteAtual).slice().reverse();
+    painel.style.display = minhas.length ? 'block' : 'none';
+    lista.innerHTML = minhas.map(a => {
+      const status = a.status || 'pendente';
+      const textoStatus = status === 'aprovado' ? 'Carro liberado' : status === 'recusado' ? 'Cancelado' : 'Aguardando';
+      const carro = status === 'aprovado' ? `<strong>Carro: ${esc(a.veiculoNome || '—')}</strong><br>` : '';
+      return `<div class="solicitacao-card ${status}">
+        <div class="solicitacao-topo">
+          <strong>${esc(a.destino || 'Destino não informado')}</strong>
+          <span class="solicitacao-status ${status}">${textoStatus}</span>
+        </div>
+        <div class="solicitacao-detalhe">${carro}${fmtDataBR(a.data)} às ${esc(a.hora || '—')}</div>
+      </div>`;
+    }).join('');
+  }
 
   function atualizarBadgeAgendamentos(){
     const badge = document.getElementById('badge-agendamentos');
