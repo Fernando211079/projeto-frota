@@ -663,7 +663,7 @@
       <div class="cabecalho-card">
         <button class="voltar" onclick="mostrarTela('tela-inicial')">←</button>
         <div class="icone-cab vermelho">
-          <svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10z"/></svg>
+          <svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm-7 5h5v5h-5v-5z"/></svg>
         </div>
         <div>
           <h2>Agendar Veículo</h2>
@@ -1024,8 +1024,7 @@
       <button class="btn-secundario" onclick="fecharModalLiberar()">Cancelar</button>
     </div>
   </div>
-
-<script type="module">
+  <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import {
     getFirestore, collection, addDoc, updateDoc, deleteDoc, doc,
@@ -1490,6 +1489,8 @@
     const docRef = await addDoc(refViagens, payload);
     if(localizacaoAtiva) iniciarRastreioRota(docRef.id);
     alert('Saída registrada com sucesso! Boa viagem.');
+    mudarAba('chegada');
+    cancelarSelecaoChegada();
     document.getElementById('input-destino-saida').value = '';
     document.getElementById('input-obs-saida').value = '';
     document.getElementById('select-motorista-saida').value = '';
