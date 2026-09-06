@@ -1,4 +1,4 @@
-const CACHE_NAME = 'controle-frota-v3';
+const CACHE_NAME = 'controle-frota-v4';
 const APP_SHELL = [
   './',
   './index.html',
@@ -36,4 +36,12 @@ self.addEventListener('fetch', event => {
       return response;
     }).catch(() => caches.match(event.request))
   );
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(janelas => {
+    const janelaAberta = janelas.find(janela => 'focus' in janela);
+    return janelaAberta ? janelaAberta.focus() : clients.openWindow('./');
+  }));
 });

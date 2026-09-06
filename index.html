@@ -1153,7 +1153,9 @@
   document.getElementById('status').textContent = '✅ Conectado ao banco de dados';
 
   if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('./service-worker.js?v=3').catch(() => {});
+    navigator.serviceWorker.register('./service-worker.js?v=4')
+      .then(registration => { window.frotaServiceWorker = registration; })
+      .catch(() => {});
   }
 
   const ADMIN_USER = 'admin';
@@ -1438,13 +1440,31 @@
     }
   }
 
+  async function mostrarNotificacao(titulo, corpo){
+    if(!('Notification' in window) || Notification.permission !== 'granted') return;
+    try {
+      const registration = window.frotaServiceWorker || await navigator.serviceWorker?.ready;
+      if(registration?.showNotification){
+        await registration.showNotification(titulo, {
+          body: corpo,
+          icon: './icon-192.png',
+          badge: './icon-192.png'
+        });
+      } else {
+        new Notification(titulo, { body: corpo });
+      }
+    } catch(error) {
+      console.error('Não foi possível exibir a notificação:', error);
+    }
+  }
+
   window.testarNotificacao = function(){
     if(!('Notification' in window)){ alert('Notificações não suportadas.'); return; }
     if(Notification.permission === 'granted'){
-      new Notification('Controle de Frota', { body: 'Notificações funcionando!' });
+      mostrarNotificacao('Controle de Frota', 'Notificações funcionando!');
     } else {
       Notification.requestPermission().then(p => {
-        if(p === 'granted') new Notification('Controle de Frota', { body: 'Notificações ativadas!' });
+        if(p === 'granted') mostrarNotificacao('Controle de Frota', 'Notificações ativadas!');
         else alert('Permissão de notificação negada.');
       });
     }
@@ -1833,9 +1853,7 @@
       destino, obs, status: 'pendente', criadoEm: Date.now()
     });
 
-    if('Notification' in window && Notification.permission === 'granted'){
-      new Notification('Solicitação enviada', { body: `Veículo para ${destino} em ${fmtDataBR(data)}` });
-    }
+    mostrarNotificacao('Solicitação enviada', `Veículo para ${destino} em ${fmtDataBR(data)}`);
 
     alert('Solicitação enviada com sucesso!');
     document.getElementById('select-agendar-nome').value = '';
@@ -1868,17 +1886,13 @@
   function notificarLiberacao(agendamento){
     const veiculo = agendamento.veiculoNome || 'Veículo';
     const corpo = `${veiculo} liberado para ${fmtDataBR(agendamento.data)} às ${agendamento.hora || '—'} — ${agendamento.destino}`;
-    if('Notification' in window && Notification.permission === 'granted'){
-      new Notification('Carro liberado', { body: corpo });
-    }
+    mostrarNotificacao('Carro liberado', corpo);
     alert(`Carro liberado!\n${corpo}`);
   }
 
   function notificarStatusAgendamento(agendamento, titulo){
     const corpo = `A solicitação para ${fmtDataBR(agendamento.data)} às ${agendamento.hora || '—'} foi cancelada.`;
-    if('Notification' in window && Notification.permission === 'granted'){
-      new Notification(titulo, { body: corpo });
-    }
+    mostrarNotificacao(titulo, corpo);
   }
 
   function renderMinhasSolicitacoes(){
