@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Controle de Frota</title>
+<meta name="theme-color" content="#1a2332">
+<meta name="description" content="Controle de viagens, veículos e agendamentos da frota">
+<link rel="manifest" href="manifest.webmanifest?v=2">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
@@ -181,6 +186,29 @@
     height:3px; background:#e5e7eb; border-radius:2px; margin:12px 0 16px; overflow:hidden;
   }
   .progresso span{ display:block; height:100%; width:50%; background:var(--vermelho); }
+
+  #tela-motorista .pagina, #tela-agendar .pagina{ padding:10px 12px; }
+  #tela-motorista .cabecalho-card, #tela-agendar .cabecalho-card{
+    padding:11px 14px; margin-bottom:10px;
+  }
+  #tela-motorista .painel, #tela-agendar .painel{
+    padding:13px 14px; margin-bottom:10px;
+  }
+  #tela-motorista label, #tela-agendar label{ margin-bottom:4px; }
+  #tela-motorista input, #tela-motorista select, #tela-motorista textarea,
+  #tela-agendar input, #tela-agendar select, #tela-agendar textarea{
+    padding:9px 11px; margin-bottom:9px; font-size:14px;
+  }
+  #tela-motorista textarea, #tela-agendar textarea{ min-height:56px; }
+  #tela-motorista .secao-titulo, #tela-agendar .secao-titulo{ margin-bottom:9px; }
+  #tela-motorista .banner-ok, #tela-agendar .banner-ok{ padding:9px 11px; margin-bottom:9px; }
+  #tela-motorista .linha-dupla, #tela-agendar .linha-dupla{ gap:8px; }
+  #tela-motorista .btn-primario, #tela-agendar .btn-primario,
+  #tela-motorista .btn-secundario{ padding:11px; }
+  #tela-agendar .cal-lista{ gap:7px; }
+  #tela-agendar .cal-card{ padding:10px; }
+
+  #input-agendar-hora{ min-height:40px; }
 
   .abas-motorista{ display:flex; gap:8px; margin-bottom:14px; }
   .aba-m{
@@ -690,7 +718,7 @@
           </div>
 
           <label>KM de saída</label>
-          <input type="number" id="input-km-saida" placeholder="Ex: 45230">
+          <input type="text" id="input-km-saida" inputmode="numeric" placeholder="Ex: 14.000" oninput="formatarKm(this)">
 
           <label>Observações (opcional)</label>
           <textarea id="input-obs-saida" placeholder="Ex: abasteci antes de sair, passageiro..."></textarea>
@@ -700,6 +728,11 @@
       </div>
 
       <div id="sub-chegada" class="subtela">
+        <div class="painel" id="painel-lista-abertas">
+          <div class="secao-titulo">Viagens em aberto</div>
+          <div id="lista-viagens-abertas"></div>
+          <div id="vazio-abertas" class="vazio" style="display:none">Nenhuma viagem em aberto.</div>
+        </div>
         <div class="painel" id="painel-form-chegada" style="display:none;">
           <div id="resumo-viagem-selecionada" class="banner-ok"></div>
           <div class="linha-dupla">
@@ -713,7 +746,7 @@
             </div>
           </div>
           <label>KM de chegada</label>
-          <input type="number" id="input-km-chegada" placeholder="Ex: 45250">
+          <input type="text" id="input-km-chegada" inputmode="numeric" placeholder="Ex: 14.050" oninput="formatarKm(this)">
           <label>Observações (opcional)</label>
           <textarea id="input-obs-chegada" placeholder="Ex: sem ocorrências"></textarea>
           <button class="btn-primario" onclick="registrarChegada()">Registrar Chegada →</button>
@@ -1071,6 +1104,8 @@
       <input type="number" id="modal-intervalo">
       <label>KM da última revisão</label>
       <input type="number" id="modal-km-revisao">
+      <label>Odômetro no momento (km)</label>
+      <input type="number" id="modal-km-atual" placeholder="Ex: 48200">
       <button class="btn-primario" onclick="salvarRevisao()">Salvar</button>
       <button class="btn-secundario" onclick="fecharModalRevisao()">Cancelar</button>
     </div>
@@ -1117,6 +1152,10 @@
   const db = getFirestore(app);
   document.getElementById('status').textContent = '✅ Conectado ao banco de dados';
 
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('./service-worker.js?v=2').catch(() => {});
+  }
+
   const ADMIN_USER = 'admin';
   const ADMIN_PASS = 'admin';
 
@@ -1133,6 +1172,7 @@
   let posicaoAtual = null;
   let calMesOffset = {}; // veiculoId -> offset meses
   let revisaoEditId = null;
+  let redirecionouParaViagemAberta = false;
 
   // ---------- Navegação ----------
   window.mostrarTela = function(id){
@@ -1161,6 +1201,23 @@
       renderAgendamentos();
       renderCalendarios();
     }
+  }
+
+  function manterHoraVisivel(input){
+    setTimeout(() => {
+      input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 120);
+  }
+
+  document.getElementById('input-agendar-hora')?.addEventListener('focus', function(){
+    manterHoraVisivel(this);
+  });
+
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize', () => {
+      const hora = document.getElementById('input-agendar-hora');
+      if(document.activeElement === hora) manterHoraVisivel(hora);
+    });
   }
 
   window.voltarAdminCadastro = function(){
@@ -1214,6 +1271,25 @@
     if(!iso) return '—';
     const [y,m,d] = iso.split('-');
     return `${d}/${m}/${y}`;
+  }
+
+  function formatarKmInput(valor){
+    return String(valor ?? '').replace(/\D/g, '');
+  }
+
+  window.formatarKm = function(input){
+    const numeros = formatarKmInput(input.value);
+    input.value = numeros ? Number(numeros).toLocaleString('pt-BR') : '';
+  }
+
+  function lerKm(input){
+    const numeros = formatarKmInput(input.value);
+    return numeros ? Number(numeros) : null;
+  }
+
+  function fmtKm(valor){
+    if(valor === null || valor === undefined || valor === '') return '—';
+    return Number(valor).toLocaleString('pt-BR') + ' km';
   }
 
   function getStatusRevisao(v){
@@ -1460,6 +1536,7 @@
     document.getElementById('modal-revisao-nome').textContent = v.nome;
     document.getElementById('modal-intervalo').value = v.intervaloRevisao || '';
     document.getElementById('modal-km-revisao').value = v.kmUltimaRevisao || '';
+    document.getElementById('modal-km-atual').value = v.kmAtual ?? v.kmUltimaRevisao ?? '';
     document.getElementById('modal-revisao').style.display = 'flex';
   }
 
@@ -1472,9 +1549,11 @@
     if(!revisaoEditId) return;
     const intervalo = document.getElementById('modal-intervalo').value;
     const km = document.getElementById('modal-km-revisao').value;
+    const kmAtual = document.getElementById('modal-km-atual').value;
     await updateDoc(doc(db, "veiculos", revisaoEditId), {
       intervaloRevisao: intervalo ? Number(intervalo) : null,
-      kmUltimaRevisao: km ? Number(km) : null
+      kmUltimaRevisao: km ? Number(km) : null,
+      kmAtual: kmAtual ? Number(kmAtual) : 0
     });
     fecharModalRevisao();
   }
@@ -1562,7 +1641,7 @@
   window.preencherKmAutomatico = function(){
     const id = document.getElementById('select-veiculo-saida').value;
     const kmInput = document.getElementById('input-km-saida');
-    if(id && window.veiculosMap[id]) kmInput.value = window.veiculosMap[id].kmAtual;
+    if(id && window.veiculosMap[id]) kmInput.value = Number(window.veiculosMap[id].kmAtual || 0).toLocaleString('pt-BR');
     else kmInput.value = '';
   }
 
@@ -1575,10 +1654,10 @@
     const destino = document.getElementById('input-destino-saida').value.trim();
     const dataSaida = document.getElementById('input-data-saida').value;
     const horaSaida = document.getElementById('input-hora-saida').value;
-    const kmSaida = document.getElementById('input-km-saida').value;
+    const kmSaida = lerKm(document.getElementById('input-km-saida'));
     const obs = document.getElementById('input-obs-saida').value.trim();
 
-    if(!motorista || !veiculoId || !destino || !kmSaida){
+    if(!motorista || !veiculoId || !destino || !Number.isFinite(kmSaida)){
       alert('Preencha motorista, veículo, destino e KM de saída.');
       return;
     }
@@ -1587,7 +1666,7 @@
       motorista, veiculoId,
       veiculoNome: window.veiculosMap[veiculoId].nome,
       destino, dataSaida, horaSaida,
-      kmSaida: Number(kmSaida),
+      kmSaida,
       obsSaida: obs,
       status: 'aberta',
       criadoEm: Date.now(),
@@ -1613,6 +1692,18 @@
     renderViagensAbertas();
     renderRelatorio();
     renderCalendarios();
+
+    if(!redirecionouParaViagemAberta){
+      const viagemAberta = viagens
+        .filter(v => v.status === 'aberta')
+        .sort((a, b) => (b.criadoEm || 0) - (a.criadoEm || 0))[0];
+      if(viagemAberta){
+        redirecionouParaViagemAberta = true;
+        mostrarTela('tela-motorista');
+        mudarAba('chegada');
+        selecionarViagemParaChegada(viagemAberta.id, viagemAberta, true);
+      }
+    }
   });
 
   function renderViagensAbertas(){
@@ -1644,7 +1735,7 @@
     btnCancelar.style.display = direto ? 'none' : 'inline-block';
 
     document.getElementById('resumo-viagem-selecionada').textContent =
-      `${dados.motorista} · ${dados.veiculoNome} · destino: ${dados.destino} · KM saída: ${dados.kmSaida}`;
+      `${dados.motorista} · ${dados.veiculoNome} · destino: ${dados.destino} · KM saída: ${fmtKm(dados.kmSaida)}`;
     const { data, hora } = dataHoraAtual();
     document.getElementById('input-data-chegada').value = data;
     document.getElementById('input-hora-chegada').value = hora;
@@ -1660,14 +1751,22 @@
   }
 
   window.registrarChegada = async function(){
+    if(!viagemSelecionadaId || !viagemSelecionadaDados){
+      alert('Selecione uma viagem aberta antes de registrar a chegada.');
+      return;
+    }
+
     const dataChegada = document.getElementById('input-data-chegada').value;
     const horaChegada = document.getElementById('input-hora-chegada').value;
-    const kmChegada = document.getElementById('input-km-chegada').value;
+    const kmChegada = lerKm(document.getElementById('input-km-chegada'));
     const obs = document.getElementById('input-obs-chegada').value.trim();
 
-    if(!kmChegada){ alert('Preencha o KM de chegada.'); return; }
+    if(!Number.isFinite(kmChegada)){
+      alert('Preencha o KM de chegada. Digite um valor como 14.000.');
+      return;
+    }
     if(Number(kmChegada) < viagemSelecionadaDados.kmSaida){
-      alert('O KM de chegada não pode ser menor que o KM de saída (' + viagemSelecionadaDados.kmSaida + ').');
+      alert('O KM de chegada não pode ser menor que o KM de saída (' + fmtKm(viagemSelecionadaDados.kmSaida) + ').');
       return;
     }
 
@@ -1679,22 +1778,27 @@
       watchGpsId = null;
     }
 
-    await updateDoc(doc(db, "viagens", viagemSelecionadaId), {
-      status: 'fechada',
-      dataChegada, horaChegada,
-      kmChegada: Number(kmChegada),
-      obsChegada: obs,
-      kmRodado,
-      rota,
-      temRota: rota.length >= 1
-    });
+    try {
+      await updateDoc(doc(db, "viagens", viagemSelecionadaId), {
+        status: 'fechada',
+        dataChegada, horaChegada,
+        kmChegada,
+        obsChegada: obs,
+        kmRodado,
+        rota,
+        temRota: rota.length >= 1
+      });
 
-    await updateDoc(doc(db, "veiculos", viagemSelecionadaDados.veiculoId), {
-      kmAtual: Number(kmChegada)
-    });
+      await updateDoc(doc(db, "veiculos", viagemSelecionadaDados.veiculoId), {
+        kmAtual: Number(kmChegada)
+      });
 
-    alert('Chegada registrada! ' + kmRodado + ' km rodados nesta viagem.');
-    cancelarSelecaoChegada();
+      alert('Chegada registrada! ' + kmRodado + ' km rodados nesta viagem.');
+      cancelarSelecaoChegada();
+    } catch(error) {
+      console.error('Erro ao registrar chegada:', error);
+      alert('Não foi possível registrar a chegada. Verifique sua conexão e tente novamente.');
+    }
   }
 
   window.excluirViagem = async function(id){
@@ -1986,11 +2090,11 @@
         <td>${esc(v.destino)}</td>
         <td>${fmtDataBR(v.dataSaida)}</td>
         <td>${v.horaSaida || '—'}</td>
-        <td>${v.kmSaida ?? '—'}</td>
+        <td>${fmtKm(v.kmSaida)}</td>
         <td>${fmtDataBR(v.dataChegada)}</td>
         <td>${v.horaChegada || '—'}</td>
-        <td>${v.kmChegada ?? '—'}</td>
-        <td><strong>${v.kmRodado ?? '—'}</strong></td>
+        <td>${fmtKm(v.kmChegada)}</td>
+        <td><strong>${fmtKm(v.kmRodado)}</strong></td>
         <td>${esc(obs)}</td>
         <td>${pontosRota(v).length ? `<button class="btn-rota" onclick="abrirMapaRota('${v.id}')">📍 Rota</button>` : '—'}</td>
         <td><button class="btn-excluir" onclick="excluirViagem('${v.id}')">🗑 Excluir</button></td>`;
