@@ -515,7 +515,7 @@
   .badge-revisao{
     display:inline-flex; align-items:center; justify-content:center;
     border-radius:999px; padding:4px 8px; font-size:10px; font-weight:800;
-    text-transform:uppercase; letter-spacing:.3px; white-space:nowrap;
+    text-transform:uppercase, letter-spacing:.3px; white-space:nowrap;
   }
   .badge-revisao.amarelo{ background:#fff1b8; color:#8a5f00; }
   .badge-revisao.vermelho{ background:#fdd6d3; color:#8d1f17; }
@@ -682,11 +682,6 @@
       </div>
 
       <div id="sub-chegada" class="subtela">
-        <div class="painel" id="painel-lista-abertas">
-          <div style="font-size:13px; color:var(--cinza); margin-bottom:10px;">Toque na viagem que está sendo finalizada:</div>
-          <div id="lista-viagens-abertas"></div>
-          <div id="vazio-abertas" class="vazio">Nenhuma viagem em aberto no momento.</div>
-        </div>
         <div class="painel" id="painel-form-chegada" style="display:none;">
           <div id="resumo-viagem-selecionada" class="banner-ok"></div>
           <div class="linha-dupla">
@@ -704,7 +699,7 @@
           <label>Observações (opcional)</label>
           <textarea id="input-obs-chegada" placeholder="Ex: sem ocorrências"></textarea>
           <button class="btn-primario" onclick="registrarChegada()">Registrar Chegada →</button>
-          <button class="btn-secundario" onclick="cancelarSelecaoChegada()">Cancelar</button>
+          <button id="btn-cancelar-chegada" class="btn-secundario" onclick="cancelarSelecaoChegada()">Cancelar</button>
         </div>
       </div>
     </div>
@@ -1571,9 +1566,9 @@
 
     const docRef = await addDoc(refViagens, payload);
     if(localizacaoAtiva) iniciarRastreioRota(docRef.id);
-    alert('Saída registrada com sucesso! Boa viagem.');
     mudarAba('chegada');
-    cancelarSelecaoChegada();
+    selecionarViagemParaChegada(docRef.id, { ...payload, id: docRef.id }, true);
+    alert('Saída registrada com sucesso! Boa viagem.');
     document.getElementById('input-destino-saida').value = '';
     document.getElementById('input-obs-saida').value = '';
     document.getElementById('select-motorista-saida').value = '';
@@ -1606,11 +1601,17 @@
     });
   }
 
-  window.selecionarViagemParaChegada = function(id, dados){
+  window.selecionarViagemParaChegada = function(id, dados, direto = false){
     viagemSelecionadaId = id;
     viagemSelecionadaDados = dados;
-    document.getElementById('painel-lista-abertas').style.display = 'none';
-    document.getElementById('painel-form-chegada').style.display = 'block';
+    const painelLista = document.getElementById('painel-lista-abertas');
+    const painelForm = document.getElementById('painel-form-chegada');
+    const btnCancelar = document.getElementById('btn-cancelar-chegada');
+
+    painelLista.style.display = direto ? 'none' : 'block';
+    painelForm.style.display = 'block';
+    btnCancelar.style.display = direto ? 'none' : 'inline-block';
+
     document.getElementById('resumo-viagem-selecionada').textContent =
       `${dados.motorista} · ${dados.veiculoNome} · destino: ${dados.destino} · KM saída: ${dados.kmSaida}`;
     const { data, hora } = dataHoraAtual();
@@ -1624,6 +1625,7 @@
     viagemSelecionadaId = null; viagemSelecionadaDados = null;
     document.getElementById('painel-lista-abertas').style.display = 'block';
     document.getElementById('painel-form-chegada').style.display = 'none';
+    document.getElementById('btn-cancelar-chegada').style.display = 'inline-block';
   }
 
   window.registrarChegada = async function(){
