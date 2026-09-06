@@ -274,10 +274,43 @@
     background:#fff; border-radius:14px; padding:14px; min-width:180px;
     box-shadow:0 1px 3px rgba(0,0,0,.06); flex-shrink:0;
   }
+  .hist-card.revisao-urgente-amarelo{
+    background:#fff8e1; border:1px solid #f7d879;
+    box-shadow:0 8px 20px rgba(244,180,0,.12);
+  }
+  .hist-card.revisao-urgente-vermelho{
+    background:#fdecea; border:1px solid #f1b0a8;
+    box-shadow:0 8px 20px rgba(192,57,43,.12);
+  }
   .hist-card h4{ font-size:14px; color:var(--azul-noite); margin-bottom:4px; }
   .hist-card p{ font-size:12px; color:var(--cinza); }
   .hist-card .odo{ font-size:13px; color:var(--vermelho); font-weight:700; margin-top:8px; }
   .hist-card .rota{ font-size:11px; color:var(--cinza); margin-top:6px; }
+  .hist-card .status-revisao{
+    display:inline-block; margin-top:8px; padding:4px 8px; border-radius:999px;
+    font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.35px;
+  }
+  .hist-card .status-revisao.amarelo{ background:#fff1b8; color:#8a5f00; }
+  .hist-card .status-revisao.vermelho{ background:#fdd6d3; color:#8d1f17; }
+
+  .destaque-revisao{
+    display:none; background:linear-gradient(135deg, #fff7d6 0%, #fff1b8 100%);
+    border:1px solid #f3cc5c; border-radius:14px; padding:12px 14px; margin-bottom:16px;
+    box-shadow:0 8px 18px rgba(244,180,0,.12);
+  }
+  .destaque-revisao.vermelho{
+    background:linear-gradient(135deg, #fdecea 0%, #f9d6d2 100%);
+    border-color:#ef9e96;
+    box-shadow:0 8px 18px rgba(192,57,43,.12);
+  }
+  .destaque-revisao .titulo{
+    font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.4px;
+    color:#8a5f00; margin-bottom:6px;
+  }
+  .destaque-revisao.vermelho .titulo{ color:#8d1f17; }
+  .destaque-revisao .lista{ font-size:13px; color:#4b5563; line-height:1.5; }
+  .destaque-revisao .lista strong{ color:var(--azul-noite); }
+  .destaque-revisao .lista span{ display:block; }
 
   .filtros-card{
     background:#fff; border-radius:14px; padding:16px; margin-bottom:14px;
@@ -465,18 +498,27 @@
     display:flex; align-items:center; gap:10px; padding:12px 14px;
     border-bottom:1px solid var(--borda); background:#fff;
   }
+  .lista-veiculo-card.revisao-amarela{
+    background:#fff8e1; border-left:4px solid #f4b400;
+  }
+  .lista-veiculo-card.revisao-vermelha{
+    background:#fdecea; border-left:4px solid var(--vermelho);
+  }
   .lista-veiculo-card:last-child{ border-bottom:none; }
   .lista-veiculo-card .info{ flex:1; min-width:0; }
+  .lista-veiculo-card .titulo-veiculo{
+    display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px;
+  }
   .lista-veiculo-card .info strong{ display:block; font-size:14px; }
   .lista-veiculo-card .info small{ color:var(--cinza); font-size:12px; }
   .lista-veiculo-card .btns{ display:flex; gap:6px; flex-shrink:0; }
-
-  .manual-bloco{ margin-bottom:18px; text-align:left; }
-  .manual-bloco h3{ font-size:15px; margin-bottom:6px; color:var(--azul-noite); }
-  .manual-bloco p, .manual-bloco li{ font-size:14px; color:var(--cinza); line-height:1.5; }
-  .manual-bloco ul{ padding-left:18px; }
-
-  .veiculo-lista-wrap{ background:#fff; border-radius:14px; overflow:hidden; margin-bottom:14px; }
+  .badge-revisao{
+    display:inline-flex; align-items:center; justify-content:center;
+    border-radius:999px; padding:4px 8px; font-size:10px; font-weight:800;
+    text-transform:uppercase; letter-spacing:.3px; white-space:nowrap;
+  }
+  .badge-revisao.amarelo{ background:#fff1b8; color:#8a5f00; }
+  .badge-revisao.vermelho{ background:#fdd6d3; color:#8d1f17; }
 
   /* Celular pequeno */
   @media(max-width:380px){
@@ -835,6 +877,7 @@
         </div>
 
         <div class="secao-admin">🚚 Histórico por Veículo</div>
+        <div id="destaque-revisao-veiculos" class="destaque-revisao"></div>
         <div class="hist-scroll" id="hist-veiculos"></div>
 
         <div class="secao-admin">🔽 Filtros</div>
@@ -1123,6 +1166,8 @@
     document.getElementById('aba-chegada').classList.toggle('ativa', aba === 'chegada');
     document.getElementById('sub-saida').classList.toggle('ativa', aba === 'saida');
     document.getElementById('sub-chegada').classList.toggle('ativa', aba === 'chegada');
+    document.getElementById('painel-lista-abertas').style.display = aba === 'chegada' ? 'block' : 'none';
+    document.getElementById('painel-form-chegada').style.display = aba === 'chegada' && viagemSelecionadaId ? 'block' : 'none';
   }
 
   window.mudarTabAdmin = function(tab){
@@ -1146,6 +1191,27 @@
     if(!iso) return '—';
     const [y,m,d] = iso.split('-');
     return `${d}/${m}/${y}`;
+  }
+
+  function getStatusRevisao(v){
+    const intervalo = Number(v?.intervaloRevisao);
+    if(!intervalo || intervalo <= 0){
+      return { nivel: 'ok', texto: '', pct: 0, kmRestante: null };
+    }
+
+    const kmUltima = Number(v?.kmUltimaRevisao ?? 0);
+    const kmAtual = Number(v?.kmAtual ?? kmUltima ?? 0);
+    const kmRodados = Math.max(0, kmAtual - kmUltima);
+    const pct = Math.min(100, (kmRodados / intervalo) * 100);
+    const kmRestante = Math.max(0, intervalo - kmRodados);
+
+    if(pct >= 100){
+      return { nivel: 'vermelho', texto: 'Revisão vencida', pct, kmRestante };
+    }
+    if(pct >= 90){
+      return { nivel: 'amarelo', texto: 'Revisão próxima', pct, kmRestante };
+    }
+    return { nivel: 'ok', texto: '', pct, kmRestante };
   }
 
   // ---------- Localização ----------
@@ -1421,15 +1487,21 @@
     else { vazio.style.display = 'none'; lista.style.display = 'block'; }
 
     veiculos.forEach(v => {
+      const status = getStatusRevisao(v);
       const revisaoTxt = v.intervaloRevisao
         ? `Revisão a cada ${v.intervaloRevisao} km` + (v.kmUltimaRevisao != null ? ` · última: ${v.kmUltimaRevisao}` : '')
         : 'Sem alerta de revisão';
+      const restanteTxt = status.kmRestante != null ? ` · ${status.kmRestante} km restantes` : '';
+      const badge = status.texto ? `<span class="badge-revisao ${status.nivel}">${status.texto}</span>` : '';
       const card = document.createElement('div');
-      card.className = 'lista-veiculo-card';
+      card.className = `lista-veiculo-card${status.nivel === 'amarelo' ? ' revisao-amarela' : status.nivel === 'vermelho' ? ' revisao-vermelha' : ''}`;
       card.innerHTML = `
         <div class="info">
-          <strong>${esc(v.nome)}</strong>
-          <small>${esc(revisaoTxt)}</small>
+          <div class="titulo-veiculo">
+            <strong>${esc(v.nome)}</strong>
+            ${badge}
+          </div>
+          <small>${esc(revisaoTxt)}${esc(restanteTxt)}</small>
         </div>
         <div class="btns">
           <button class="btn-revisao" onclick="abrirModalRevisao('${v.id}')">🔧 Revisão</button>
@@ -1762,20 +1834,51 @@
 
     // Histórico por veículo
     const hist = document.getElementById('hist-veiculos');
+    const destaqueRev = document.getElementById('destaque-revisao-veiculos');
     hist.innerHTML = '';
+
+    const veiculosAviso = veiculos
+      .map(veic => ({ veic, status: getStatusRevisao(veic) }))
+      .filter(item => item.status.nivel === 'amarelo' || item.status.nivel === 'vermelho')
+      .sort((a, b) => {
+        const ordem = { vermelho: 0, amarelo: 1 };
+        return ordem[a.status.nivel] - ordem[b.status.nivel];
+      });
+
+    if(veiculosAviso.length){
+      const maisUrgente = veiculosAviso[0].status.nivel === 'vermelho';
+      destaqueRev.className = `destaque-revisao ${maisUrgente ? 'vermelho' : ''}`;
+      destaqueRev.style.display = 'block';
+      destaqueRev.innerHTML = `
+        <div class="titulo">⚠ Revisão prioritária</div>
+        <div class="lista">
+          ${veiculosAviso.map(item => {
+            const kmRest = item.status.kmRestante != null ? `${item.status.kmRestante} km restantes` : 'Verificar intervalo';
+            return `<span><strong>${esc(item.veic.nome)}</strong> · ${item.status.nivel === 'vermelho' ? 'Vencida' : 'Próxima'} · ${kmRest}</span>`;
+          }).join('')}
+        </div>`;
+    } else {
+      destaqueRev.style.display = 'none';
+      destaqueRev.innerHTML = '';
+    }
+
     veiculos.forEach(veic => {
       const vs = filtradas.filter(v => v.veiculoId === veic.id);
       const km = vs.filter(v => v.status === 'fechada').reduce((s,v) => s + (v.kmRodado||0), 0);
       const temRota = vs.some(v => pontosRota(v).length > 0);
       const odo = veic.kmAtual != null ? veic.kmAtual : (veic.kmUltimaRevisao || 0);
+      const status = getStatusRevisao(veic);
       const card = document.createElement('div');
-      card.className = 'hist-card';
+      const classe = status.nivel === 'amarelo' ? 'revisao-urgente-amarelo' : status.nivel === 'vermelho' ? 'revisao-urgente-vermelho' : '';
+      const badge = status.texto ? `<div class="status-revisao ${status.nivel}">${status.texto}</div>` : '';
+      card.className = `hist-card ${classe}`.trim();
       card.innerHTML = `
         <h4>${esc(veic.nome)}</h4>
         <p>${vs.length} viagem${vs.length !== 1 ? 'ns' : ''}</p>
         <p>${km} KM rodados</p>
         <div class="odo">Odômetro: ${Number(odo).toLocaleString('pt-BR')} KM</div>
-        <div class="rota">📍 ${temRota ? 'Com rota registrada' : 'Sem rota registrada'}</div>`;
+        <div class="rota">📍 ${temRota ? 'Com rota registrada' : 'Sem rota registrada'}</div>
+        ${badge}`;
       hist.appendChild(card);
     });
     if(veiculos.length === 0){
