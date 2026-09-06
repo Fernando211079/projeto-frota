@@ -1,0 +1,2049 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Controle de Frota</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root{
+    --vermelho: #c0392b;
+    --vermelho-escuro: #922b21;
+    --azul-noite: #1a2332;
+    --azul: #3d5a80;
+    --azul-claro: #4a6fa5;
+    --fundo: #f0f1f3;
+    --texto: #1c1c1e;
+    --cinza: #6b7280;
+    --borda: #e2e2e7;
+    --verde: #27ae60;
+    --verde-claro: #e8f8ef;
+    --hoje: #dbeafe;
+    --hoje-borda: #3b82f6;
+    --ocupado: #c0392b;
+    --livre: #d1fae5;
+    --livre-borda: #34d399;
+    --laranja-bg: #fef3e8;
+    --laranja: #e67e22;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: linear-gradient(180deg, var(--vermelho-escuro) 0%, #3a1210 45%, #1a1a1a 100%);
+    min-height:100vh;
+    color: var(--texto);
+    -webkit-tap-highlight-color: transparent;
+  }
+  body.admin-bg{ background: var(--fundo); }
+
+  .tela{ display:none; min-height:100vh; }
+  .tela.ativa{ display:block; }
+  .tela-centro{
+    display:none; min-height:100vh; padding:24px 16px;
+    align-items:center; justify-content:center;
+  }
+  .tela-centro.ativa{ display:flex; }
+
+  .cartao{
+    background:#fff; border-radius:20px; padding:32px 24px;
+    width:100%; max-width:400px; text-align:center;
+    box-shadow: 0 20px 50px rgba(0,0,0,.35);
+  }
+  .icone-brand{
+    width:56px; height:56px; background:var(--vermelho); border-radius:14px;
+    display:flex; align-items:center; justify-content:center; margin:0 auto 14px;
+  }
+  .icone-brand svg{ width:28px; height:28px; fill:#fff; }
+  .marca{ font-size:22px; font-weight:800; letter-spacing:.5px; color:var(--azul-noite); }
+  .marca-sub{ color:var(--cinza); font-size:12px; text-transform:uppercase; letter-spacing:1px; margin-top:2px; }
+  .marca-sub2{ color:var(--cinza); font-size:13px; text-transform:uppercase; letter-spacing:.8px; margin:4px 0 28px; }
+
+  .botao-menu{
+    display:flex; align-items:center; gap:14px; width:100%;
+    padding:16px 18px; margin-bottom:12px; border:none; border-radius:14px;
+    font-size:16px; font-weight:600; cursor:pointer; color:#fff; text-align:left;
+  }
+  .botao-menu svg{ width:22px; height:22px; fill:currentColor; flex-shrink:0; }
+  .botao-menu.motorista{ background: var(--vermelho); }
+  .botao-menu.agendar{ background: var(--azul); }
+  .botao-menu.admin{ background: var(--azul-noite); }
+  .botao-menu.manual{ background:#e9e9ee; color:var(--texto); }
+  .botao-menu:active{ transform: scale(.98); }
+  #status{ margin-top:16px; font-size:12px; color:var(--cinza); }
+
+  /* Login */
+  .campo-icone{
+    display:flex; align-items:center; gap:10px;
+    border:1px solid var(--borda); border-radius:12px;
+    padding:0 14px; margin-bottom:12px; background:#fff;
+  }
+  .campo-icone svg{ width:18px; height:18px; fill:var(--cinza); flex-shrink:0; }
+  .campo-icone input{
+    border:none; outline:none; padding:14px 0; width:100%; font-size:15px; margin:0;
+  }
+  .link-voltar{
+    display:inline-block; margin-top:16px; color:var(--cinza); font-size:14px;
+    text-decoration:none; cursor:pointer; background:none; border:none;
+  }
+
+  /* Páginas com fundo escuro */
+  .pagina{ padding:16px; max-width:520px; margin:0 auto; }
+  .cabecalho-card{
+    background:#fff; border-radius:16px; padding:16px 18px; margin-bottom:14px;
+    display:flex; align-items:center; gap:12px;
+  }
+  .voltar{
+    background:none; border:none; font-size:22px; cursor:pointer; color:var(--texto);
+    padding:4px 8px 4px 0; line-height:1;
+  }
+  .icone-cab{
+    width:42px; height:42px; border-radius:11px;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .icone-cab.vermelho{ background:var(--vermelho); }
+  .icone-cab.azul{ background:var(--azul-noite); }
+  .icone-cab svg{ width:22px; height:22px; fill:#fff; }
+  .cabecalho-card h2{ font-size:17px; }
+  .cabecalho-card .empresa{ font-size:11px; color:var(--cinza); text-transform:uppercase; letter-spacing:.5px; }
+
+  .painel{
+    background:#fff; border-radius:16px; padding:18px; margin-bottom:14px;
+  }
+  label{
+    display:block; font-size:11px; font-weight:700; color:var(--cinza);
+    margin-bottom:6px; text-transform:uppercase; letter-spacing:.4px;
+  }
+  input, select, textarea{
+    width:100%; padding:12px 14px; border:1px solid var(--borda); border-radius:10px;
+    font-size:15px; margin-bottom:14px; font-family:inherit; background:#fff; color:var(--texto);
+  }
+  textarea{ resize:vertical; min-height:70px; }
+  .linha-dupla{ display:flex; gap:12px; }
+  .linha-dupla > div{ flex:1; min-width:0; }
+
+  .btn-primario{
+    width:100%; padding:14px; background:var(--vermelho); color:#fff;
+    border:none; border-radius:12px; font-size:15px; font-weight:700; cursor:pointer;
+  }
+  .btn-primario:active{ transform: scale(.98); }
+  .btn-escuro{
+    width:100%; padding:14px; background:var(--azul-noite); color:#fff;
+    border:none; border-radius:12px; font-size:15px; font-weight:700; cursor:pointer;
+  }
+  .btn-secundario{
+    width:100%; padding:14px; background:#e9e9ee; color:var(--texto);
+    border:none; border-radius:12px; font-size:15px; font-weight:600; cursor:pointer; margin-top:8px;
+  }
+  .secao-titulo{
+    font-size:13px; font-weight:800; color:var(--vermelho); text-transform:uppercase;
+    letter-spacing:.5px; margin-bottom:14px;
+  }
+  .banner-ok{
+    background:var(--verde-claro); color:#1e7e42; border:1px solid #a7e9c3;
+    border-radius:12px; padding:12px 14px; font-size:13px; margin-bottom:14px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .banner-ok .btn-mini{
+    margin-left:auto; background:var(--verde); color:#fff; border:none;
+    border-radius:8px; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;
+  }
+  .progresso{
+    height:3px; background:#e5e7eb; border-radius:2px; margin:12px 0 16px; overflow:hidden;
+  }
+  .progresso span{ display:block; height:100%; width:50%; background:var(--vermelho); }
+
+  .abas-motorista{ display:flex; gap:8px; margin-bottom:14px; }
+  .aba-m{
+    flex:1; padding:12px; text-align:center; border-radius:10px; font-size:13px; font-weight:700;
+    background:#fff; color:var(--cinza); cursor:pointer; border:1px solid var(--borda);
+  }
+  .aba-m.ativa{ background:var(--vermelho); color:#fff; border-color:var(--vermelho); }
+  .subtela{ display:none; }
+  .subtela.ativa{ display:block; }
+
+  .cartao-viagem{
+    background:#fff; border:1px solid var(--borda); border-radius:12px;
+    padding:14px; margin-bottom:10px; cursor:pointer;
+  }
+  .cartao-viagem:active{ transform: scale(.98); }
+  .cartao-viagem .destino{ font-weight:700; font-size:15px; }
+  .cartao-viagem .detalhe{ font-size:13px; color:var(--cinza); margin-top:4px; }
+  .vazio{ text-align:center; color:var(--cinza); padding:28px 16px; font-size:14px; }
+  .vazio-icone{ font-size:48px; opacity:.25; margin-bottom:8px; }
+
+  table{ width:100%; border-collapse:collapse; }
+  th{
+    background:var(--azul-noite); color:#fff; text-align:left;
+    padding:10px 12px; font-size:11px; text-transform:uppercase; letter-spacing:.4px;
+  }
+  th:first-child{ border-top-left-radius:10px; }
+  th:last-child{ border-top-right-radius:10px; }
+  td{ padding:12px; border-bottom:1px solid var(--borda); font-size:14px; }
+  .btn-excluir{
+    background:#fdecea; color:var(--vermelho); border:none;
+    padding:7px 12px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;
+  }
+  .btn-rota{
+    background:#e8f1fb; color:#1d4ed8; border:none;
+    padding:7px 12px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;
+    white-space:nowrap;
+  }
+  .btn-revisao{
+    background:var(--laranja-bg); color:var(--laranja); border:none;
+    padding:7px 12px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; margin-right:6px;
+  }
+  .alerta-revisao{
+    background:var(--laranja-bg); border-radius:12px; padding:14px; margin-bottom:14px;
+  }
+  .alerta-revisao > label:first-child{ color:var(--laranja); margin-bottom:10px; }
+
+  .form-inline{ display:flex; gap:8px; align-items:stretch; margin-bottom:14px; }
+  .form-inline input{ margin-bottom:0; flex:1; }
+  .form-inline button{ white-space:nowrap; width:auto; padding:12px 16px; flex-shrink:0; }
+
+  /* ===== ADMIN ===== */
+  .admin-wrap{ max-width:100%; margin:0 auto; padding-bottom:40px; }
+  .admin-header{
+    background:var(--azul-noite); color:#fff; padding:14px 16px;
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    position:sticky; top:0; z-index:20;
+  }
+  .admin-header-left{ display:flex; align-items:center; gap:10px; min-width:0; }
+  .admin-header h1{ font-size:16px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .admin-header .emp{ font-size:10px; color:#9ca3af; text-transform:uppercase; letter-spacing:.5px; }
+  .admin-acoes{ display:flex; gap:8px; flex-shrink:0; }
+  .admin-acoes button{
+    width:40px; height:40px; border-radius:12px; border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    background:#2d3748; color:#fff;
+  }
+  .admin-acoes button.voltar-admin{ background:var(--vermelho); }
+  .admin-acoes button svg{ width:18px; height:18px; fill:currentColor; }
+
+  .admin-tabs{
+    background:var(--azul-noite); display:flex; padding:0 8px 0;
+    border-bottom:1px solid #2d3748; position:sticky; top:68px; z-index:19;
+  }
+  .admin-tab{
+    flex:1; text-align:center; padding:12px 6px 10px; color:#9ca3af;
+    font-size:12px; font-weight:600; cursor:pointer; border-bottom:3px solid transparent;
+    background:none; border-top:none; border-left:none; border-right:none;
+    position:relative;
+  }
+  .admin-tab.ativa{ color:#fff; border-bottom-color:var(--vermelho); }
+  .admin-tab svg{ width:16px; height:16px; fill:currentColor; vertical-align:-3px; margin-right:4px; }
+  .admin-tab .badge-pedidos{
+    display:none; position:absolute; top:4px; right:8px;
+    min-width:18px; height:18px; padding:0 5px;
+    background:#f1c40f; color:#1a1a1a; border-radius:999px;
+    font-size:11px; font-weight:800; line-height:18px;
+    box-shadow:0 1px 3px rgba(0,0,0,.25);
+  }
+  .admin-tab .badge-pedidos.visivel{ display:inline-block; }
+  .admin-conteudo{ padding:16px; display:none; }
+  .admin-conteudo.ativa{ display:block; }
+
+  .stats{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
+  .stat-card{
+    background:#fff; border-radius:14px; padding:14px 16px;
+    box-shadow:0 1px 3px rgba(0,0,0,.06);
+  }
+  .stat-card .lbl{ font-size:10px; color:var(--cinza); text-transform:uppercase; font-weight:700; letter-spacing:.4px; }
+  .stat-card .val{ font-size:28px; font-weight:800; margin-top:4px; color:var(--azul-noite); }
+  .stat-card .val.vermelho{ color:var(--vermelho); }
+  .stat-card .val.verde{ color:var(--verde); }
+
+  .secao-admin{
+    font-size:11px; font-weight:800; color:var(--cinza); text-transform:uppercase;
+    letter-spacing:.5px; margin:16px 0 10px; display:flex; align-items:center; gap:6px;
+  }
+  .hist-scroll{ display:flex; gap:10px; overflow-x:auto; padding-bottom:6px; -webkit-overflow-scrolling:touch; }
+  .hist-card{
+    background:#fff; border-radius:14px; padding:14px; min-width:180px;
+    box-shadow:0 1px 3px rgba(0,0,0,.06); flex-shrink:0;
+  }
+  .hist-card h4{ font-size:14px; color:var(--azul-noite); margin-bottom:4px; }
+  .hist-card p{ font-size:12px; color:var(--cinza); }
+  .hist-card .odo{ font-size:13px; color:var(--vermelho); font-weight:700; margin-top:8px; }
+  .hist-card .rota{ font-size:11px; color:var(--cinza); margin-top:6px; }
+
+  .filtros-card{
+    background:#fff; border-radius:14px; padding:16px; margin-bottom:14px;
+    box-shadow:0 1px 3px rgba(0,0,0,.06);
+  }
+  .filtros-grid{ display:grid; grid-template-columns:1fr; gap:0; }
+  .filtros-acoes{ display:flex; align-items:center; justify-content:space-between; margin-top:4px; gap:12px; flex-wrap:wrap; }
+  .link-limpar{ color:var(--azul-claro); font-size:14px; font-weight:600; cursor:pointer; background:none; border:none; }
+  .btn-csv{
+    background:var(--azul-noite); color:#fff; border:none; border-radius:10px;
+    padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer;
+  }
+
+  .tabela-scroll{ overflow-x:auto; background:#fff; border-radius:14px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,.06); -webkit-overflow-scrolling:touch; }
+  .tabela-scroll table{ min-width:720px; }
+  .th-saida{ background:#2c5282 !important; }
+  .th-chegada{ background:#1e7e42 !important; }
+  .th-extra{ background:var(--azul-noite) !important; }
+
+  .zona-perigo{
+    background:#fdecea; border:1px solid #f5c6cb; border-radius:14px; padding:16px; margin-top:8px;
+  }
+  .zona-perigo h3{ color:var(--vermelho); font-size:14px; margin-bottom:6px; }
+  .zona-perigo p{ color:var(--vermelho); font-size:12px; margin-bottom:12px; opacity:.85; }
+  .btn-perigo-outline{
+    width:100%; padding:12px; background:#fff; color:var(--vermelho);
+    border:1.5px solid var(--vermelho); border-radius:10px; font-size:13px; font-weight:700;
+    cursor:pointer; margin-bottom:8px;
+  }
+  .btn-perigo{
+    width:100%; padding:12px; background:var(--vermelho); color:#fff;
+    border:none; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer;
+  }
+  .zona-perigo-acoes{ display:grid; grid-template-columns:1fr; gap:8px; }
+  .zona-perigo-acoes .btn-perigo-outline{ margin-bottom:0; }
+
+  .agend-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .agend-header h3{ font-size:16px; color:var(--texto); display:flex; align-items:center; gap:8px; font-weight:800; }
+  .agend-header h3 svg{ width:20px; height:20px; fill:var(--vermelho); }
+  .link-atualizar{ color:#2563eb; font-size:14px; font-weight:600; cursor:pointer; background:none; border:none; text-decoration:underline; }
+
+  .agend-lista{ display:grid; grid-template-columns:1fr; gap:12px; }
+  .agend-card{
+    background:#fff; border-radius:16px; padding:14px 16px 16px;
+    border:1px solid var(--borda); margin-bottom:0;
+  }
+  .agend-card.pendente{
+    background:#fff8e1;
+    border:1px solid #f5d76e;
+  }
+  .agend-card.aprovado{ background:#f0fdf4; border-color:#86efac; }
+  .agend-card.recusado{ background:#fef2f2; border-color:#fecaca; }
+  .agend-topo{ display:flex; align-items:center; gap:8px; }
+  .agend-topo .nome{ font-weight:800; font-size:16px; flex:1; min-width:0; }
+  .agend-sino{ color:#2563eb; font-size:16px; line-height:1; }
+  .agend-badge{
+    display:inline-block; padding:4px 10px; border-radius:999px;
+    font-size:12px; font-weight:800; white-space:nowrap;
+  }
+  .agend-badge.pendente{ background:#f1c40f; color:#5c4b00; }
+  .agend-badge.aprovado{ background:#22c55e; color:#fff; }
+  .agend-badge.recusado{ background:#e74c3c; color:#fff; }
+  .agend-card .meta{ font-size:14px; color:#6b7280; margin-top:6px; margin-bottom:12px; }
+  .agend-card .obs{ font-size:13px; color:var(--cinza); margin:-6px 0 12px; }
+  .agend-linha-acao{
+    display:flex; align-items:stretch; gap:8px;
+  }
+  .agend-linha-acao select{
+    flex:1; margin-bottom:0; min-width:0; background:#fff;
+    height:44px; padding:8px 12px;
+  }
+  .btn-liberar{
+    background:#22c55e; color:#fff; border:none; border-radius:10px;
+    padding:0 16px; height:44px; font-size:14px; font-weight:800;
+    cursor:pointer; white-space:nowrap; display:flex; align-items:center; gap:6px;
+  }
+  .btn-cancelar-agend{
+    margin-top:10px; background:#fff; color:#e74c3c;
+    border:1.5px solid #f5b7b1; border-radius:10px;
+    padding:8px 14px; font-size:13px; font-weight:700; cursor:pointer;
+    display:inline-flex; align-items:center; gap:6px;
+  }
+  .btn-excluir-agend{
+    margin-top:10px; background:#fff; color:var(--vermelho);
+    border:1px solid #f5c6cb; border-radius:10px;
+    padding:8px 14px; font-size:12px; font-weight:700; cursor:pointer;
+  }
+
+  .cal-lista{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));
+    gap:10px;
+    align-items:start;
+  }
+
+  /* Calendário */
+  .cal-filtro{ margin-bottom:12px; }
+  .legenda{ display:flex; gap:14px; margin-bottom:14px; flex-wrap:wrap; font-size:12px; color:var(--cinza); }
+  .legenda span{ display:flex; align-items:center; gap:6px; }
+  .leg-box{ width:14px; height:14px; border-radius:3px; }
+  .leg-ocupado{ background:var(--ocupado); }
+  .leg-livre{ background:var(--livre); border:1px solid var(--livre-borda); }
+  .leg-hoje{ background:var(--hoje); border:1px solid var(--hoje-borda); }
+
+  .cal-veiculo{
+    background:#fff; border-radius:12px; overflow:hidden; margin-bottom:0;
+    box-shadow:0 1px 3px rgba(0,0,0,.06); min-width:0;
+  }
+  .cal-veiculo-header{
+    background:var(--azul-noite); color:#fff; padding:8px 10px;
+    display:flex; align-items:center; justify-content:space-between; gap:6px;
+  }
+  .cal-veiculo-header .nome{
+    font-weight:700; font-size:11px; min-width:0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .cal-nav{ display:flex; align-items:center; gap:4px; font-size:10px; flex-shrink:0; }
+  .cal-nav button{
+    background:rgba(255,255,255,.15); border:none; color:#fff; width:22px; height:22px;
+    border-radius:6px; cursor:pointer; font-size:12px; line-height:1;
+  }
+  .cal-grid{
+    padding:6px;
+    display:grid;
+    grid-template-columns:repeat(7, minmax(0, 1fr));
+    grid-auto-rows:22px;
+    gap:2px;
+    width:100%;
+  }
+  .cal-dow{
+    text-align:center; font-size:7px; color:var(--cinza); font-weight:700;
+    padding:0; min-width:0; overflow:hidden; height:14px; line-height:14px;
+    grid-row:1;
+  }
+  .cal-dia{
+    display:flex; align-items:center; justify-content:center;
+    font-size:9px; font-weight:600; border-radius:4px; color:var(--texto);
+    min-width:0; width:100%; height:22px; cursor:default;
+    border:1px solid transparent;
+  }
+  .cal-dia.clicavel{ cursor:pointer; }
+  .cal-dia.clicavel:active{ transform:scale(.92); }
+  .cal-dia.vazio{
+    visibility:visible; cursor:default; background:transparent; border-color:transparent;
+    pointer-events:none;
+  }
+  .cal-dia.livre{ background:var(--livre); border-color:var(--livre-borda); }
+  .cal-dia.ocupado{ background:var(--ocupado); color:#fff; border-color:var(--ocupado); }
+  .cal-dia.hoje{ background:var(--hoje); border:2px solid var(--hoje-borda); }
+  .cal-dia.selecionado{ outline:2px solid var(--azul-noite); outline-offset:0; }
+
+  .cal-detalhe{
+    display:none; padding:10px; border-top:1px solid var(--borda);
+    background:#fafbfc; font-size:12px;
+  }
+  .cal-detalhe.visivel{ display:block; }
+  .cal-detalhe h4{
+    font-size:11px; text-transform:uppercase; letter-spacing:.4px;
+    color:var(--vermelho); margin-bottom:8px;
+  }
+  .cal-reserva{
+    background:#fff; border:1px solid var(--borda); border-radius:8px;
+    padding:10px; margin-bottom:8px;
+  }
+  .cal-reserva:last-child{ margin-bottom:0; }
+  .cal-reserva .linha{ margin-bottom:4px; color:var(--texto); font-size:12px; }
+  .cal-reserva .linha strong{ color:var(--cinza); font-weight:600; font-size:10px; text-transform:uppercase; margin-right:4px; }
+  .cal-reserva .tipo{
+    display:inline-block; font-size:10px; font-weight:700; text-transform:uppercase;
+    color:var(--vermelho); background:#fdecea; padding:2px 8px; border-radius:999px; margin-bottom:6px;
+  }
+  .cal-detalhe-vazio{ color:var(--cinza); font-size:12px; }
+
+  .cal-bloco{
+    display:flex; flex-direction:column; gap:0; min-width:0;
+  }
+  .cal-bloco.expandido{
+    grid-column: 1 / -1;
+  }
+  .cal-bloco.expandido .cal-veiculo{
+    max-width:420px;
+  }
+
+  .lista-veiculo-card{
+    display:flex; align-items:center; gap:10px; padding:12px 14px;
+    border-bottom:1px solid var(--borda); background:#fff;
+  }
+  .lista-veiculo-card:last-child{ border-bottom:none; }
+  .lista-veiculo-card .info{ flex:1; min-width:0; }
+  .lista-veiculo-card .info strong{ display:block; font-size:14px; }
+  .lista-veiculo-card .info small{ color:var(--cinza); font-size:12px; }
+  .lista-veiculo-card .btns{ display:flex; gap:6px; flex-shrink:0; }
+
+  .manual-bloco{ margin-bottom:18px; text-align:left; }
+  .manual-bloco h3{ font-size:15px; margin-bottom:6px; color:var(--azul-noite); }
+  .manual-bloco p, .manual-bloco li{ font-size:14px; color:var(--cinza); line-height:1.5; }
+  .manual-bloco ul{ padding-left:18px; }
+
+  .veiculo-lista-wrap{ background:#fff; border-radius:14px; overflow:hidden; margin-bottom:14px; }
+
+  /* Celular pequeno */
+  @media(max-width:380px){
+    .admin-tab{ font-size:11px; padding:10px 2px; }
+    .admin-tab svg{ display:none; }
+    .admin-tab .badge-pedidos{ top:2px; right:2px; }
+    .admin-header h1{ font-size:14px; }
+  }
+
+  /* Tablet */
+  @media(min-width:768px){
+    .admin-wrap{ max-width:960px; }
+    .admin-header{ padding:16px 24px; }
+    .admin-header h1{ font-size:18px; }
+    .admin-tabs{ padding:0 16px; top:72px; }
+    .admin-tab{ font-size:14px; padding:14px 10px 12px; }
+    .admin-tab .badge-pedidos{ right:calc(50% - 70px); top:6px; }
+    .admin-conteudo{ padding:24px; }
+    .stats{ grid-template-columns:repeat(4, 1fr); gap:14px; }
+    .stat-card .val{ font-size:32px; }
+    .filtros-grid{ grid-template-columns:1fr 1fr; gap:0 16px; }
+    .filtros-grid .linha-dupla{ grid-column:1 / -1; }
+    .hist-scroll{ display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); overflow:visible; }
+    .hist-card{ min-width:0; }
+    .agend-lista{ grid-template-columns:1fr; max-width:560px; }
+    .cal-lista{ grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); }
+    .zona-perigo-acoes{ grid-template-columns:1fr 1fr; }
+    .pagina{ max-width:720px; padding:24px; }
+  }
+
+  /* Computador */
+  @media(min-width:1100px){
+    .admin-wrap{ max-width:1200px; }
+    .admin-header{ padding:18px 28px; border-radius:0 0 0 0; }
+    .admin-tabs{ padding:0 20px; }
+    .admin-conteudo{ padding:28px; }
+    .stats{ gap:16px; }
+    .filtros-grid{ grid-template-columns:1fr 1fr 1fr 1fr; align-items:end; }
+    .filtros-grid .linha-dupla{ grid-column:auto; display:contents; }
+    .filtros-grid .linha-dupla > div{ margin:0; }
+    .filtros-card label{ margin-bottom:6px; }
+    .filtros-card input, .filtros-card select{ margin-bottom:0; }
+    .filtros-acoes{ margin-top:16px; }
+    .tabela-scroll table{ min-width:100%; }
+    .agend-lista{ grid-template-columns:1fr 1fr; max-width:none; }
+    .cal-lista{ grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); }
+    .hist-scroll{ grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); }
+    .admin-tab .badge-pedidos{ right:calc(50% - 78px); }
+    .cal-dia{ font-size:10px; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ========== TELA INICIAL ========== -->
+  <div id="tela-inicial" class="tela-centro ativa">
+    <div class="cartao">
+      <div class="icone-brand">
+        <svg viewBox="0 0 24 24"><path d="M18 18.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm-11 0a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zM20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2a3 3 0 0 0 6 0h6a3 3 0 0 0 6 0h2v-5l-3-4zM6 18.5c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm11.5-9l1.96 2.5H15V9.5h2.5zm.5 9c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/></svg>
+      </div>
+      <div class="marca">CONTROLE DE FROTA</div>
+      <div class="marca-sub2">Sistema de Viagens</div>
+
+      <button class="botao-menu motorista" onclick="mostrarTela('tela-motorista')">
+        <svg viewBox="0 0 24 24"><path d="M18 18.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm-11 0a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zM20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2a3 3 0 0 0 6 0h6a3 3 0 0 0 6 0h2v-5l-3-4z"/></svg>
+        Área do Motorista
+      </button>
+      <button class="botao-menu agendar" onclick="mostrarTela('tela-agendar')">
+        <svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5v-5z"/></svg>
+        Agendar Veículo
+      </button>
+      <button class="botao-menu admin" onclick="mostrarTela('tela-login')">
+        <svg viewBox="0 0 24 24"><path d="M3.5 18.5l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 17.09z"/></svg>
+        Área Administrativa
+      </button>
+      <button class="botao-menu manual" onclick="mostrarTela('tela-manual')">
+        <svg viewBox="0 0 24 24"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
+        Manual de Uso
+      </button>
+      <div id="status">Conectando ao banco de dados...</div>
+    </div>
+  </div>
+
+  <!-- ========== LOGIN ADMIN ========== -->
+  <div id="tela-login" class="tela-centro">
+    <div class="cartao">
+      <div class="icone-brand" style="background:var(--azul-noite)">
+        <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg>
+      </div>
+      <div class="marca" style="font-size:20px">Administrador</div>
+      <div class="marca-sub" style="margin-bottom:24px">Acesso restrito</div>
+
+      <div class="campo-icone">
+        <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+        <input type="text" id="login-usuario" placeholder="Usuário" autocomplete="username">
+      </div>
+      <div class="campo-icone">
+        <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1v2z"/></svg>
+        <input type="password" id="login-senha" placeholder="Senha" autocomplete="current-password">
+      </div>
+      <button class="btn-escuro" onclick="fazerLogin()">Entrar</button>
+      <button class="link-voltar" onclick="mostrarTela('tela-inicial')">← Voltar ao início</button>
+    </div>
+  </div>
+
+  <!-- ========== ÁREA DO MOTORISTA ========== -->
+  <div id="tela-motorista" class="tela">
+    <div class="pagina">
+      <div class="cabecalho-card">
+        <button class="voltar" onclick="mostrarTela('tela-inicial')">←</button>
+        <div class="icone-cab vermelho">
+          <svg viewBox="0 0 24 24"><path d="M18 18.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm-11 0a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zM20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2a3 3 0 0 0 6 0h6a3 3 0 0 0 6 0h2v-5l-3-4z"/></svg>
+        </div>
+        <div>
+          <h2>Registro de Viagem</h2>
+          <div class="empresa">Controle de Frota</div>
+        </div>
+      </div>
+
+      <div class="abas-motorista">
+        <div class="aba-m ativa" id="aba-saida" onclick="mudarAba('saida')">Registrar Saída</div>
+        <div class="aba-m" id="aba-chegada" onclick="mudarAba('chegada')">Registrar Chegada</div>
+      </div>
+
+      <div id="sub-saida" class="subtela ativa">
+        <div class="painel">
+          <div class="progresso"><span></span></div>
+          <div class="banner-ok" id="banner-localizacao">
+            <span>📍 Localização — aguardando permissão</span>
+          </div>
+          <div class="secao-titulo">Dados da Saída</div>
+
+          <label>Motorista</label>
+          <select id="select-motorista-saida"><option value="">— Selecione o motorista —</option></select>
+
+          <label>Veículo</label>
+          <select id="select-veiculo-saida" onchange="preencherKmAutomatico()"><option value="">— Selecione o veículo —</option></select>
+
+          <label>Destino</label>
+          <input type="text" id="input-destino-saida" placeholder="Ex: São Paulo - SP">
+
+          <div class="linha-dupla">
+            <div>
+              <label>Data de saída</label>
+              <input type="date" id="input-data-saida">
+            </div>
+            <div>
+              <label>Hora de saída</label>
+              <input type="time" id="input-hora-saida">
+            </div>
+          </div>
+
+          <label>KM de saída</label>
+          <input type="number" id="input-km-saida" placeholder="Ex: 45230">
+
+          <label>Observações (opcional)</label>
+          <textarea id="input-obs-saida" placeholder="Ex: abasteci antes de sair, passageiro..."></textarea>
+
+          <button class="btn-primario" onclick="registrarSaida()">Registrar Saída →</button>
+        </div>
+      </div>
+
+      <div id="sub-chegada" class="subtela">
+        <div class="painel" id="painel-lista-abertas">
+          <div style="font-size:13px; color:var(--cinza); margin-bottom:10px;">Toque na viagem que está sendo finalizada:</div>
+          <div id="lista-viagens-abertas"></div>
+          <div id="vazio-abertas" class="vazio">Nenhuma viagem em aberto no momento.</div>
+        </div>
+        <div class="painel" id="painel-form-chegada" style="display:none;">
+          <div id="resumo-viagem-selecionada" class="banner-ok"></div>
+          <div class="linha-dupla">
+            <div>
+              <label>Data de chegada</label>
+              <input type="date" id="input-data-chegada">
+            </div>
+            <div>
+              <label>Hora de chegada</label>
+              <input type="time" id="input-hora-chegada">
+            </div>
+          </div>
+          <label>KM de chegada</label>
+          <input type="number" id="input-km-chegada" placeholder="Ex: 45250">
+          <label>Observações (opcional)</label>
+          <textarea id="input-obs-chegada" placeholder="Ex: sem ocorrências"></textarea>
+          <button class="btn-primario" onclick="registrarChegada()">Registrar Chegada →</button>
+          <button class="btn-secundario" onclick="cancelarSelecaoChegada()">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== AGENDAR VEÍCULO ========== -->
+  <div id="tela-agendar" class="tela">
+    <div class="pagina">
+      <div class="cabecalho-card">
+        <button class="voltar" onclick="mostrarTela('tela-inicial')">←</button>
+        <div class="icone-cab vermelho">
+          <svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10z"/></svg>
+        </div>
+        <div>
+          <h2>Agendar Veículo</h2>
+          <div class="empresa">Controle de Frota</div>
+        </div>
+      </div>
+      <div class="painel">
+        <div class="secao-titulo">Solicitar Veículo</div>
+        <div class="banner-ok" id="banner-notif">
+          <span>🔔 Notificações</span>
+          <button class="btn-mini" type="button" onclick="testarNotificacao()">Testar</button>
+        </div>
+
+        <label>Seu nome</label>
+        <select id="select-agendar-nome"><option value="">— Selecione seu nome —</option></select>
+
+        <div class="linha-dupla">
+          <div>
+            <label>Data</label>
+            <input type="date" id="input-agendar-data">
+          </div>
+          <div>
+            <label>Hora</label>
+            <input type="time" id="input-agendar-hora">
+          </div>
+        </div>
+
+        <label>Veículo desejado (opcional)</label>
+        <select id="select-agendar-veiculo"><option value="">— Qualquer veículo —</option></select>
+
+        <label>Destino</label>
+        <input type="text" id="input-agendar-destino" placeholder="Ex: São Paulo - SP">
+
+        <label>Observações (opcional)</label>
+        <textarea id="input-agendar-obs" placeholder="Ex: carga pesada, passageiro extra..."></textarea>
+
+        <button class="btn-primario" onclick="solicitarVeiculo()">Solicitar Veículo →</button>
+      </div>
+
+      <div class="painel" style="padding-top:14px;">
+        <div class="secao-titulo" style="margin-bottom:10px;">📅 Disponibilidade por veículo</div>
+        <p style="font-size:13px;color:var(--cinza);margin-bottom:12px;">Toque em um dia <strong>livre</strong> para preencher data e veículo. Toque em um dia <strong>vermelho</strong> para ver quem reservou.</p>
+        <div class="cal-filtro">
+          <select id="filtro-cal-agendar" onchange="renderCalendarios()">
+            <option value="">Todos os veículos</option>
+          </select>
+        </div>
+        <div class="legenda">
+          <span><i class="leg-box leg-ocupado"></i> Ocupado</span>
+          <span><i class="leg-box leg-livre"></i> Livre</span>
+          <span><i class="leg-box leg-hoje"></i> Hoje</span>
+        </div>
+        <div class="cal-lista" id="lista-calendarios-agendar"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== MANUAL ========== -->
+  <div id="tela-manual" class="tela">
+    <div class="pagina">
+      <div class="cabecalho-card">
+        <button class="voltar" onclick="mostrarTela('tela-inicial')">←</button>
+        <div class="icone-cab azul">
+          <svg viewBox="0 0 24 24"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
+        </div>
+        <div>
+          <h2>Manual de Uso</h2>
+          <div class="empresa">Controle de Frota</div>
+        </div>
+      </div>
+      <div class="painel" style="text-align:left">
+        <div class="manual-bloco">
+          <h3>Área do Motorista</h3>
+          <p>Use <strong>Registrar Saída</strong> ao iniciar a viagem e <strong>Registrar Chegada</strong> ao finalizar. O KM do veículo é atualizado automaticamente.</p>
+        </div>
+        <div class="manual-bloco">
+          <h3>Agendar Veículo</h3>
+          <p>Solicite um veículo com data, hora e destino. A solicitação aparece na área administrativa para aprovação.</p>
+        </div>
+        <div class="manual-bloco">
+          <h3>Área Administrativa</h3>
+          <ul>
+            <li>Login: usuário <strong>admin</strong> / senha <strong>admin</strong></li>
+            <li><strong>Viagens:</strong> relatório, filtros e exportação CSV</li>
+            <li><strong>Agendamentos:</strong> aprovar ou recusar pedidos</li>
+            <li><strong>Calendário:</strong> ver disponibilidade por veículo</li>
+          </ul>
+        </div>
+        <div class="manual-bloco">
+          <h3>Cadastros</h3>
+          <p>No admin, use os ícones de pessoas e caminhão no topo para cadastrar motoristas e veículos.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== ADMIN ========== -->
+  <div id="tela-admin" class="tela">
+    <div class="admin-wrap">
+      <div class="admin-header">
+        <div class="admin-header-left">
+          <div class="icone-cab vermelho" style="width:36px;height:36px;border-radius:9px">
+            <svg viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M3.5 18.5l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 17.09z"/></svg>
+          </div>
+          <div>
+            <h1>Relatório de Viagens</h1>
+            <div class="emp">Controle de Frota</div>
+          </div>
+        </div>
+        <div class="admin-acoes">
+          <button title="Motoristas" onclick="mostrarTela('tela-cadastro-motoristas')">
+            <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+          </button>
+          <button title="Veículos" onclick="mostrarTela('tela-cadastro-veiculos')">
+            <svg viewBox="0 0 24 24"><path d="M18 18.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm-11 0a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zM20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2a3 3 0 0 0 6 0h6a3 3 0 0 0 6 0h2v-5l-3-4z"/></svg>
+          </button>
+          <button class="voltar-admin" title="Sair" onclick="sairAdmin()">
+            <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="admin-tabs">
+        <button class="admin-tab ativa" id="tab-viagens" onclick="mudarTabAdmin('viagens')">
+          <svg viewBox="0 0 24 24"><path d="M18 18.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm-11 0a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zM20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2a3 3 0 0 0 6 0h6a3 3 0 0 0 6 0h2v-5l-3-4z"/></svg>
+          Viagens
+        </button>
+        <button class="admin-tab" id="tab-agendamentos" onclick="mudarTabAdmin('agendamentos')">
+          <svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm-7 5h5v5h-5v-5z"/></svg>
+          Agendamentos
+          <span class="badge-pedidos" id="badge-agendamentos" aria-label="Pedidos pendentes">0</span>
+        </button>
+        <button class="admin-tab" id="tab-calendario" onclick="mudarTabAdmin('calendario')">
+          <svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10z"/></svg>
+          Calendário
+        </button>
+      </div>
+
+      <!-- TAB VIAGENS -->
+      <div id="admin-viagens" class="admin-conteudo ativa">
+        <div class="stats">
+          <div class="stat-card">
+            <div class="lbl">Viagens (filtro)</div>
+            <div class="val" id="stat-viagens">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="lbl">KM rodado (filtro)</div>
+            <div class="val vermelho" id="stat-km">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="lbl">↗ KM este mês</div>
+            <div class="val" id="stat-mes">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="lbl">⏱ Em aberto</div>
+            <div class="val verde" id="stat-abertas">0</div>
+          </div>
+        </div>
+
+        <div class="secao-admin">🚚 Histórico por Veículo</div>
+        <div class="hist-scroll" id="hist-veiculos"></div>
+
+        <div class="secao-admin">🔽 Filtros</div>
+        <div class="filtros-card">
+          <div class="filtros-grid">
+            <div>
+              <label>Motorista</label>
+              <select id="filtro-motorista"><option value="">Todos</option></select>
+            </div>
+            <div>
+              <label>Veículo</label>
+              <select id="filtro-veiculo"><option value="">Todos</option></select>
+            </div>
+            <div class="linha-dupla">
+              <div>
+                <label>Data início</label>
+                <input type="date" id="filtro-inicio">
+              </div>
+              <div>
+                <label>Data fim</label>
+                <input type="date" id="filtro-fim">
+              </div>
+            </div>
+          </div>
+          <div class="filtros-acoes">
+            <button class="link-limpar" onclick="limparFiltros()">Limpar</button>
+            <button class="btn-csv" onclick="exportarCSV()">⬇ Exportar CSV</button>
+          </div>
+        </div>
+
+        <div class="tabela-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th class="th-saida">Motorista</th>
+                <th class="th-saida">Veículo</th>
+                <th class="th-saida">Destino</th>
+                <th class="th-saida">Data saída</th>
+                <th class="th-saida">Hora saída</th>
+                <th class="th-saida">KM saída</th>
+                <th class="th-chegada">Data chegada</th>
+                <th class="th-chegada">Hora chegada</th>
+                <th class="th-chegada">KM chegada</th>
+                <th class="th-chegada">KM rodado</th>
+                <th class="th-extra">Observações</th>
+                <th class="th-extra">Rota</th>
+                <th class="th-extra">Ação</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-viagens"></tbody>
+          </table>
+        </div>
+        <div id="vazio-viagens-admin" class="vazio" style="display:none">Nenhuma viagem encontrada.</div>
+
+        <div class="zona-perigo">
+          <h3>⚠ Zona de Perigo</h3>
+          <p>Use estas opções apenas quando necessário. As ações não podem ser desfeitas.</p>
+          <div class="zona-perigo-acoes">
+            <button class="btn-perigo-outline" onclick="limparTodasViagens()">🗑 Limpar todas as viagens</button>
+            <button class="btn-perigo" onclick="resetarTudo()">⚠ Resetar tudo (viagens + cadastros)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB AGENDAMENTOS -->
+      <div id="admin-agendamentos" class="admin-conteudo">
+        <div class="agend-header">
+          <h3>
+            <svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10z"/></svg>
+            Solicitações de Veículo
+          </h3>
+          <button class="link-atualizar" onclick="renderAgendamentos()">Atualizar</button>
+        </div>
+        <div class="agend-lista" id="lista-agendamentos"></div>
+        <div id="vazio-agendamentos" class="vazio" style="background:#fff;border-radius:14px;">
+          <div class="vazio-icone">📅</div>
+          Nenhum agendamento ainda.
+        </div>
+      </div>
+
+      <!-- TAB CALENDÁRIO -->
+      <div id="admin-calendario" class="admin-conteudo">
+        <div class="secao-admin" style="margin-top:0; color:var(--texto); font-size:15px;">
+          📅 Disponibilidade por Veículo
+        </div>
+        <p style="font-size:13px;color:var(--cinza);margin:-4px 0 12px;">Toque em um dia vermelho para ver os dados da reserva.</p>
+        <div class="cal-filtro">
+          <select id="filtro-cal-veiculo" onchange="renderCalendarios()">
+            <option value="">Todos os veículos</option>
+          </select>
+        </div>
+        <div class="legenda">
+          <span><i class="leg-box leg-ocupado"></i> Ocupado</span>
+          <span><i class="leg-box leg-livre"></i> Livre</span>
+          <span><i class="leg-box leg-hoje"></i> Hoje</span>
+        </div>
+        <div class="cal-lista" id="lista-calendarios"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== CADASTRO MOTORISTAS ========== -->
+  <div id="tela-cadastro-motoristas" class="tela">
+    <div class="pagina">
+      <div class="cabecalho-card">
+        <button class="voltar" onclick="voltarAdminCadastro()">←</button>
+        <div class="icone-cab azul">
+          <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        </div>
+        <div>
+          <h2>Cadastro de Motoristas</h2>
+          <div class="empresa">Controle de Frota</div>
+        </div>
+      </div>
+      <div class="painel">
+        <div class="form-inline">
+          <input type="text" id="input-nome-motorista" placeholder="Nome do motorista">
+          <button class="btn-escuro" style="width:auto" onclick="cadastrarMotorista()">+ Cadastrar</button>
+        </div>
+      </div>
+      <div class="painel" style="padding:0; overflow:hidden;">
+        <table>
+          <thead><tr><th>Motorista</th><th>Ação</th></tr></thead>
+          <tbody id="lista-motoristas"></tbody>
+        </table>
+        <div id="vazio-motoristas" class="vazio">Nenhum motorista cadastrado ainda.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== CADASTRO VEÍCULOS ========== -->
+  <div id="tela-cadastro-veiculos" class="tela">
+    <div class="pagina">
+      <div class="cabecalho-card">
+        <button class="voltar" onclick="voltarAdminCadastro()">←</button>
+        <div class="icone-cab vermelho">
+          <svg viewBox="0 0 24 24"><path d="M18 18.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm-11 0a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zM20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2a3 3 0 0 0 6 0h6a3 3 0 0 0 6 0h2v-5l-3-4z"/></svg>
+        </div>
+        <div>
+          <h2>Cadastro de Veículos</h2>
+          <div class="empresa">Controle de Frota</div>
+        </div>
+      </div>
+      <div class="painel">
+        <label>Nome do veículo</label>
+        <input type="text" id="input-nome-veiculo" placeholder="Ex: VW Delivery ABC-1234">
+        <div class="alerta-revisao">
+          <label>🔧 Alerta de Revisão (opcional)</label>
+          <div class="linha-dupla">
+            <div>
+              <label style="font-weight:500; text-transform:none;">Intervalo de revisão (km)</label>
+              <input type="number" id="input-intervalo-revisao" placeholder="Ex: 10000">
+            </div>
+            <div>
+              <label style="font-weight:500; text-transform:none;">KM na última revisão</label>
+              <input type="number" id="input-km-revisao" placeholder="Ex: 45000">
+            </div>
+          </div>
+        </div>
+        <button class="btn-primario" onclick="cadastrarVeiculo()">+ Cadastrar Veículo</button>
+      </div>
+      <div class="veiculo-lista-wrap" id="lista-veiculos-cards"></div>
+      <div id="vazio-veiculos" class="vazio" style="background:#fff;border-radius:14px;">Nenhum veículo cadastrado ainda.</div>
+    </div>
+  </div>
+
+  <!-- Modal revisão -->
+  <div id="modal-revisao" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:100; align-items:center; justify-content:center; padding:20px;">
+    <div class="painel" style="max-width:360px; width:100%; margin:0;">
+      <h3 style="margin-bottom:12px;">Atualizar revisão</h3>
+      <p id="modal-revisao-nome" style="font-size:13px;color:var(--cinza);margin-bottom:12px;"></p>
+      <label>Intervalo (km)</label>
+      <input type="number" id="modal-intervalo">
+      <label>KM da última revisão</label>
+      <input type="number" id="modal-km-revisao">
+      <button class="btn-primario" onclick="salvarRevisao()">Salvar</button>
+      <button class="btn-secundario" onclick="fecharModalRevisao()">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Modal mapa da rota -->
+  <div id="modal-mapa" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:120; align-items:center; justify-content:center; padding:16px;">
+    <div class="painel" style="max-width:640px; width:100%; margin:0; padding:16px;">
+      <h3 style="margin-bottom:6px;">Rota da viagem</h3>
+      <p id="mapa-resumo" style="font-size:13px;color:var(--cinza);margin-bottom:12px;"></p>
+      <div id="mapa-leaflet" style="height:340px;width:100%;border-radius:12px;overflow:hidden;background:#e5e7eb;"></div>
+      <a id="mapa-google" href="#" target="_blank" rel="noopener" class="btn-primario" style="display:block;text-align:center;text-decoration:none;margin-top:12px;background:#1d4ed8;">Abrir no Google Maps</a>
+      <button class="btn-secundario" onclick="fecharMapaRota()">Fechar</button>
+    </div>
+  </div>
+  <div id="modal-liberar" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:100; align-items:center; justify-content:center; padding:20px;">
+    <div class="painel" style="max-width:380px; width:100%; margin:0;">
+      <h3 style="margin-bottom:8px;">Liberar veículo</h3>
+      <p id="modal-liberar-resumo" style="font-size:13px;color:var(--cinza);margin-bottom:14px;"></p>
+      <label>Selecione o veículo para liberar</label>
+      <select id="modal-liberar-veiculo"><option value="">— Escolha o veículo —</option></select>
+      <button class="btn-primario" onclick="confirmarLiberacao()">✓ Liberar e aprovar</button>
+      <button class="btn-secundario" onclick="fecharModalLiberar()">Cancelar</button>
+    </div>
+  </div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getFirestore, collection, addDoc, updateDoc, deleteDoc, doc,
+    onSnapshot, orderBy, query, getDocs
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyD3j4T2l7dDmBb7KLbdNls7qjucgE-GUgw",
+    authDomain: "controle-de-frota-a69b1.firebaseapp.com",
+    databaseURL: "https://controle-de-frota-a69b1-default-rtdb.firebaseio.com",
+    projectId: "controle-de-frota-a69b1",
+    storageBucket: "controle-de-frota-a69b1.firebasestorage.app",
+    messagingSenderId: "559028245042",
+    appId: "1:559028245042:web:11d5aef10b0e9ddb55e22b"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  document.getElementById('status').textContent = '✅ Conectado ao banco de dados';
+
+  const ADMIN_USER = 'admin';
+  const ADMIN_PASS = 'admin';
+
+  let motoristas = [];
+  let veiculos = [];
+  let viagens = [];
+  let agendamentos = [];
+  window.veiculosMap = {};
+  let viagemSelecionadaId = null;
+  let viagemSelecionadaDados = null;
+  let localizacaoAtiva = false;
+  let posicaoAtual = null;
+  let calMesOffset = {}; // veiculoId -> offset meses
+  let revisaoEditId = null;
+
+  // ---------- Navegação ----------
+  window.mostrarTela = function(id){
+    document.querySelectorAll('.tela, .tela-centro').forEach(t => t.classList.remove('ativa'));
+    document.getElementById(id).classList.add('ativa');
+    document.body.classList.toggle('admin-bg', id === 'tela-admin' || id.startsWith('tela-cadastro'));
+
+    if(id === 'tela-motorista'){
+      const { data, hora } = dataHoraAtual();
+      document.getElementById('input-data-saida').value = data;
+      document.getElementById('input-hora-saida').value = hora;
+      pedirLocalizacao();
+    }
+    if(id === 'tela-agendar'){
+      const { data, hora } = dataHoraAtual();
+      document.getElementById('input-agendar-data').value = data;
+      document.getElementById('input-agendar-hora').value = hora;
+      pedirNotificacao();
+      renderCalendarios();
+    }
+    if(id === 'tela-admin'){
+      renderRelatorio();
+      renderAgendamentos();
+      renderCalendarios();
+    }
+  }
+
+  window.voltarAdminCadastro = function(){
+    mostrarTela('tela-admin');
+  }
+
+  window.sairAdmin = function(){
+    sessionStorage.removeItem('adminLogado');
+    mostrarTela('tela-inicial');
+  }
+
+  window.fazerLogin = function(){
+    const u = document.getElementById('login-usuario').value.trim();
+    const s = document.getElementById('login-senha').value;
+    if(u === ADMIN_USER && s === ADMIN_PASS){
+      sessionStorage.setItem('adminLogado', '1');
+      document.getElementById('login-senha').value = '';
+      mostrarTela('tela-admin');
+    } else {
+      alert('Usuário ou senha incorretos.');
+    }
+  }
+
+  window.mudarAba = function(aba){
+    document.getElementById('aba-saida').classList.toggle('ativa', aba === 'saida');
+    document.getElementById('aba-chegada').classList.toggle('ativa', aba === 'chegada');
+    document.getElementById('sub-saida').classList.toggle('ativa', aba === 'saida');
+    document.getElementById('sub-chegada').classList.toggle('ativa', aba === 'chegada');
+  }
+
+  window.mudarTabAdmin = function(tab){
+    ['viagens','agendamentos','calendario'].forEach(t => {
+      document.getElementById('tab-' + t).classList.toggle('ativa', t === tab);
+      document.getElementById('admin-' + t).classList.toggle('ativa', t === tab);
+    });
+    if(tab === 'calendario') renderCalendarios();
+    if(tab === 'agendamentos') renderAgendamentos();
+    if(tab === 'viagens') renderRelatorio();
+  }
+
+  function dataHoraAtual(){
+    const agora = new Date();
+    const data = agora.toISOString().slice(0,10);
+    const hora = agora.toTimeString().slice(0,5);
+    return { data, hora };
+  }
+
+  function fmtDataBR(iso){
+    if(!iso) return '—';
+    const [y,m,d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+  }
+
+  // ---------- Localização ----------
+  let watchGpsId = null;
+  let ultimoGpsGravado = 0;
+
+  function pedirLocalizacao(){
+    const banner = document.getElementById('banner-localizacao');
+    if(!navigator.geolocation){
+      banner.innerHTML = '<span>📍 Localização não disponível neste aparelho</span>';
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        localizacaoAtiva = true;
+        posicaoAtual = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        banner.innerHTML = '<span>📍 Localização ativada — rota será registrada</span>';
+      },
+      () => {
+        localizacaoAtiva = false;
+        banner.innerHTML = '<span>📍 Localização desativada — permita o acesso para registrar rota</span>';
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  }
+
+  function iniciarRastreioRota(viagemId){
+    if(!navigator.geolocation) return;
+    if(watchGpsId != null) navigator.geolocation.clearWatch(watchGpsId);
+    watchGpsId = navigator.geolocation.watchPosition(async (pos) => {
+      const ponto = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      posicaoAtual = ponto;
+      localizacaoAtiva = true;
+      const agora = Date.now();
+      if(agora - ultimoGpsGravado < 20000) return;
+      ultimoGpsGravado = agora;
+      const v = viagens.find(x => x.id === viagemId);
+      const rota = pontosRota(v);
+      const last = rota[rota.length - 1];
+      if(last && Math.abs(last.lat - ponto.lat) < 0.00005 && Math.abs(last.lng - ponto.lng) < 0.00005) return;
+      rota.push(ponto);
+      try{
+        await updateDoc(doc(db, "viagens", viagemId), { rota, temRota: rota.length >= 2 });
+      }catch(e){}
+    }, () => {}, { enableHighAccuracy: true, maximumAge: 10000 });
+  }
+
+  function pontosRota(v){
+    return (Array.isArray(v?.rota) ? v.rota : []).filter(p => p && isFinite(Number(p.lat)) && isFinite(Number(p.lng)))
+      .map(p => ({ lat: Number(p.lat), lng: Number(p.lng) }));
+  }
+
+  let mapaRotaInstancia = null;
+
+  window.abrirMapaRota = function(id){
+    const v = viagens.find(x => x.id === id);
+    const pts = pontosRota(v);
+    if(!v || pts.length === 0){
+      alert('Esta viagem não tem rota de GPS registrada. Ative a localização na saída e na chegada.');
+      return;
+    }
+
+    document.getElementById('mapa-resumo').textContent =
+      `${v.motorista || ''} · ${v.veiculoNome || ''} · ${v.destino || ''} · ${fmtDataBR(v.dataSaida)}`;
+    const origem = `${pts[0].lat},${pts[0].lng}`;
+    const destino = `${pts[pts.length - 1].lat},${pts[pts.length - 1].lng}`;
+    document.getElementById('mapa-google').href =
+      `https://www.google.com/maps/dir/?api=1&origin=${origem}&destination=${destino}&travelmode=driving`;
+    document.getElementById('modal-mapa').style.display = 'flex';
+
+    setTimeout(() => {
+      if(typeof L === 'undefined'){
+        document.getElementById('mapa-leaflet').innerHTML = '<div class="vazio">Não foi possível carregar o mapa.</div>';
+        return;
+      }
+      if(mapaRotaInstancia){
+        mapaRotaInstancia.remove();
+        mapaRotaInstancia = null;
+      }
+      document.getElementById('mapa-leaflet').innerHTML = '';
+      const mapa = L.map('mapa-leaflet');
+      mapaRotaInstancia = mapa;
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap'
+      }).addTo(mapa);
+
+      const latlngs = pts.map(p => [p.lat, p.lng]);
+      L.marker(latlngs[0]).addTo(mapa).bindPopup('Saída');
+      if(latlngs.length > 1){
+        L.marker(latlngs[latlngs.length - 1]).addTo(mapa).bindPopup('Chegada');
+        const linha = L.polyline(latlngs, { color: '#c0392b', weight: 5 });
+        linha.addTo(mapa);
+        mapa.fitBounds(linha.getBounds(), { padding: [28, 28] });
+      } else {
+        mapa.setView(latlngs[0], 15);
+      }
+      mapa.invalidateSize();
+    }, 120);
+  }
+
+  window.fecharMapaRota = function(){
+    document.getElementById('modal-mapa').style.display = 'none';
+    if(mapaRotaInstancia){
+      mapaRotaInstancia.remove();
+      mapaRotaInstancia = null;
+    }
+  }
+
+  // ---------- Notificações ----------
+  function pedirNotificacao(){
+    const banner = document.getElementById('banner-notif');
+    if(!('Notification' in window)){
+      banner.innerHTML = '<span>🔔 Notificações não suportadas</span>';
+      return;
+    }
+    if(Notification.permission === 'granted'){
+      banner.innerHTML = '<span>🔔 Notificações ativadas</span><button class="btn-mini" type="button" onclick="testarNotificacao()">Testar</button>';
+    } else if(Notification.permission !== 'denied'){
+      Notification.requestPermission().then(p => {
+        if(p === 'granted'){
+          banner.innerHTML = '<span>🔔 Notificações ativadas</span><button class="btn-mini" type="button" onclick="testarNotificacao()">Testar</button>';
+        }
+      });
+    }
+  }
+
+  window.testarNotificacao = function(){
+    if(!('Notification' in window)){ alert('Notificações não suportadas.'); return; }
+    if(Notification.permission === 'granted'){
+      new Notification('Controle de Frota', { body: 'Notificações funcionando!' });
+    } else {
+      Notification.requestPermission().then(p => {
+        if(p === 'granted') new Notification('Controle de Frota', { body: 'Notificações ativadas!' });
+        else alert('Permissão de notificação negada.');
+      });
+    }
+  }
+
+  // ---------- MOTORISTAS ----------
+  const refMotoristas = collection(db, "motoristas");
+
+  window.cadastrarMotorista = async function(){
+    const nomeInput = document.getElementById('input-nome-motorista');
+    const nome = nomeInput.value.trim();
+    if(!nome){ alert('Digite o nome do motorista.'); return; }
+    await addDoc(refMotoristas, { nome, criadoEm: Date.now() });
+    nomeInput.value = '';
+  }
+
+  window.excluirMotorista = async function(id){
+    if(!confirm('Excluir este motorista?')) return;
+    await deleteDoc(doc(db, "motoristas", id));
+  }
+
+  onSnapshot(query(refMotoristas, orderBy("criadoEm")), (snap) => {
+    motoristas = [];
+    snap.forEach(d => motoristas.push({ id: d.id, ...d.data() }));
+    renderMotoristasUI();
+    renderRelatorio();
+  });
+
+  function renderMotoristasUI(){
+    const corpo = document.getElementById('lista-motoristas');
+    const vazio = document.getElementById('vazio-motoristas');
+    const selects = [
+      document.getElementById('select-motorista-saida'),
+      document.getElementById('select-agendar-nome'),
+      document.getElementById('filtro-motorista')
+    ];
+    corpo.innerHTML = '';
+    selects[0].innerHTML = '<option value="">— Selecione o motorista —</option>';
+    selects[1].innerHTML = '<option value="">— Selecione seu nome —</option>';
+    selects[2].innerHTML = '<option value="">Todos</option>';
+
+    if(motoristas.length === 0){ vazio.style.display = 'block'; }
+    else { vazio.style.display = 'none'; }
+
+    motoristas.forEach(m => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${esc(m.nome)}</td><td><button class="btn-excluir" onclick="excluirMotorista('${m.id}')">🗑 Excluir</button></td>`;
+      corpo.appendChild(tr);
+      selects.forEach((sel, i) => {
+        const opt = document.createElement('option');
+        opt.value = m.nome;
+        opt.textContent = m.nome;
+        sel.appendChild(opt);
+      });
+    });
+  }
+
+  // ---------- VEÍCULOS ----------
+  const refVeiculos = collection(db, "veiculos");
+
+  window.cadastrarVeiculo = async function(){
+    const nomeInput = document.getElementById('input-nome-veiculo');
+    const intervaloInput = document.getElementById('input-intervalo-revisao');
+    const kmInput = document.getElementById('input-km-revisao');
+    const nome = nomeInput.value.trim();
+    if(!nome){ alert('Digite o nome do veículo.'); return; }
+    await addDoc(refVeiculos, {
+      nome,
+      intervaloRevisao: intervaloInput.value ? Number(intervaloInput.value) : null,
+      kmUltimaRevisao: kmInput.value ? Number(kmInput.value) : null,
+      kmAtual: kmInput.value ? Number(kmInput.value) : 0,
+      criadoEm: Date.now()
+    });
+    nomeInput.value = ''; intervaloInput.value = ''; kmInput.value = '';
+  }
+
+  window.excluirVeiculo = async function(id){
+    if(!confirm('Excluir este veículo?')) return;
+    await deleteDoc(doc(db, "veiculos", id));
+  }
+
+  window.abrirModalRevisao = function(id){
+    const v = veiculos.find(x => x.id === id);
+    if(!v) return;
+    revisaoEditId = id;
+    document.getElementById('modal-revisao-nome').textContent = v.nome;
+    document.getElementById('modal-intervalo').value = v.intervaloRevisao || '';
+    document.getElementById('modal-km-revisao').value = v.kmUltimaRevisao || '';
+    document.getElementById('modal-revisao').style.display = 'flex';
+  }
+
+  window.fecharModalRevisao = function(){
+    revisaoEditId = null;
+    document.getElementById('modal-revisao').style.display = 'none';
+  }
+
+  window.salvarRevisao = async function(){
+    if(!revisaoEditId) return;
+    const intervalo = document.getElementById('modal-intervalo').value;
+    const km = document.getElementById('modal-km-revisao').value;
+    await updateDoc(doc(db, "veiculos", revisaoEditId), {
+      intervaloRevisao: intervalo ? Number(intervalo) : null,
+      kmUltimaRevisao: km ? Number(km) : null
+    });
+    fecharModalRevisao();
+  }
+
+  onSnapshot(query(refVeiculos, orderBy("criadoEm")), (snap) => {
+    veiculos = [];
+    window.veiculosMap = {};
+    snap.forEach(d => {
+      const v = { id: d.id, ...d.data() };
+      veiculos.push(v);
+      const kmAtual = (v.kmAtual !== undefined && v.kmAtual !== null) ? v.kmAtual : (v.kmUltimaRevisao || 0);
+      window.veiculosMap[d.id] = { nome: v.nome, kmAtual };
+    });
+    renderVeiculosUI();
+    renderRelatorio();
+    renderCalendarios();
+  });
+
+  function renderVeiculosUI(){
+    const lista = document.getElementById('lista-veiculos-cards');
+    const vazio = document.getElementById('vazio-veiculos');
+    const selectSaida = document.getElementById('select-veiculo-saida');
+    const selectAgendar = document.getElementById('select-agendar-veiculo');
+    const filtroVeic = document.getElementById('filtro-veiculo');
+    const filtroCal = document.getElementById('filtro-cal-veiculo');
+
+    lista.innerHTML = '';
+    selectSaida.innerHTML = '<option value="">— Selecione o veículo —</option>';
+    selectAgendar.innerHTML = '<option value="">— Qualquer veículo —</option>';
+    filtroVeic.innerHTML = '<option value="">Todos</option>';
+    filtroCal.innerHTML = '<option value="">Todos os veículos</option>';
+    const filtroCalAgendar = document.getElementById('filtro-cal-agendar');
+    if(filtroCalAgendar) filtroCalAgendar.innerHTML = '<option value="">Todos os veículos</option>';
+
+    if(veiculos.length === 0){ vazio.style.display = 'block'; lista.style.display = 'none'; }
+    else { vazio.style.display = 'none'; lista.style.display = 'block'; }
+
+    veiculos.forEach(v => {
+      const revisaoTxt = v.intervaloRevisao
+        ? `Revisão a cada ${v.intervaloRevisao} km` + (v.kmUltimaRevisao != null ? ` · última: ${v.kmUltimaRevisao}` : '')
+        : 'Sem alerta de revisão';
+      const card = document.createElement('div');
+      card.className = 'lista-veiculo-card';
+      card.innerHTML = `
+        <div class="info">
+          <strong>${esc(v.nome)}</strong>
+          <small>${esc(revisaoTxt)}</small>
+        </div>
+        <div class="btns">
+          <button class="btn-revisao" onclick="abrirModalRevisao('${v.id}')">🔧 Revisão</button>
+          <button class="btn-excluir" onclick="excluirVeiculo('${v.id}')">🗑 Excluir</button>
+        </div>`;
+      lista.appendChild(card);
+
+      const opt1 = document.createElement('option');
+      opt1.value = v.id; opt1.textContent = v.nome;
+      selectSaida.appendChild(opt1);
+
+      const opt2 = document.createElement('option');
+      opt2.value = v.id; opt2.textContent = v.nome;
+      selectAgendar.appendChild(opt2);
+
+      const opt3 = document.createElement('option');
+      opt3.value = v.id; opt3.textContent = v.nome;
+      filtroVeic.appendChild(opt3);
+
+      const opt4 = document.createElement('option');
+      opt4.value = v.id; opt4.textContent = v.nome;
+      filtroCal.appendChild(opt4);
+
+      if(filtroCalAgendar){
+        const opt5 = document.createElement('option');
+        opt5.value = v.id; opt5.textContent = v.nome;
+        filtroCalAgendar.appendChild(opt5);
+      }
+    });
+  }
+
+  window.preencherKmAutomatico = function(){
+    const id = document.getElementById('select-veiculo-saida').value;
+    const kmInput = document.getElementById('input-km-saida');
+    if(id && window.veiculosMap[id]) kmInput.value = window.veiculosMap[id].kmAtual;
+    else kmInput.value = '';
+  }
+
+  // ---------- VIAGENS ----------
+  const refViagens = collection(db, "viagens");
+
+  window.registrarSaida = async function(){
+    const motorista = document.getElementById('select-motorista-saida').value;
+    const veiculoId = document.getElementById('select-veiculo-saida').value;
+    const destino = document.getElementById('input-destino-saida').value.trim();
+    const dataSaida = document.getElementById('input-data-saida').value;
+    const horaSaida = document.getElementById('input-hora-saida').value;
+    const kmSaida = document.getElementById('input-km-saida').value;
+    const obs = document.getElementById('input-obs-saida').value.trim();
+
+    if(!motorista || !veiculoId || !destino || !kmSaida){
+      alert('Preencha motorista, veículo, destino e KM de saída.');
+      return;
+    }
+
+    const payload = {
+      motorista, veiculoId,
+      veiculoNome: window.veiculosMap[veiculoId].nome,
+      destino, dataSaida, horaSaida,
+      kmSaida: Number(kmSaida),
+      obsSaida: obs,
+      status: 'aberta',
+      criadoEm: Date.now(),
+      rota: localizacaoAtiva && posicaoAtual ? [posicaoAtual] : [],
+      temRota: !!(localizacaoAtiva && posicaoAtual)
+    };
+
+    const docRef = await addDoc(refViagens, payload);
+    if(localizacaoAtiva) iniciarRastreioRota(docRef.id);
+    alert('Saída registrada com sucesso! Boa viagem.');
+    document.getElementById('input-destino-saida').value = '';
+    document.getElementById('input-obs-saida').value = '';
+    document.getElementById('select-motorista-saida').value = '';
+    document.getElementById('select-veiculo-saida').value = '';
+    document.getElementById('input-km-saida').value = '';
+  }
+
+  onSnapshot(query(refViagens, orderBy("criadoEm")), (snap) => {
+    viagens = [];
+    snap.forEach(d => viagens.push({ id: d.id, ...d.data() }));
+    renderViagensAbertas();
+    renderRelatorio();
+    renderCalendarios();
+  });
+
+  function renderViagensAbertas(){
+    const lista = document.getElementById('lista-viagens-abertas');
+    const vazio = document.getElementById('vazio-abertas');
+    lista.innerHTML = '';
+    const abertas = viagens.filter(v => v.status === 'aberta').slice().reverse();
+    vazio.style.display = abertas.length ? 'none' : 'block';
+    abertas.forEach(v => {
+      const card = document.createElement('div');
+      card.className = 'cartao-viagem';
+      card.onclick = () => selecionarViagemParaChegada(v.id, v);
+      card.innerHTML = `
+        <div class="destino">${esc(v.destino)}</div>
+        <div class="detalhe">${esc(v.motorista)} · ${esc(v.veiculoNome)} · saiu em ${fmtDataBR(v.dataSaida)} às ${v.horaSaida || ''}</div>`;
+      lista.appendChild(card);
+    });
+  }
+
+  window.selecionarViagemParaChegada = function(id, dados){
+    viagemSelecionadaId = id;
+    viagemSelecionadaDados = dados;
+    document.getElementById('painel-lista-abertas').style.display = 'none';
+    document.getElementById('painel-form-chegada').style.display = 'block';
+    document.getElementById('resumo-viagem-selecionada').textContent =
+      `${dados.motorista} · ${dados.veiculoNome} · destino: ${dados.destino} · KM saída: ${dados.kmSaida}`;
+    const { data, hora } = dataHoraAtual();
+    document.getElementById('input-data-chegada').value = data;
+    document.getElementById('input-hora-chegada').value = hora;
+    document.getElementById('input-km-chegada').value = '';
+    document.getElementById('input-obs-chegada').value = '';
+  }
+
+  window.cancelarSelecaoChegada = function(){
+    viagemSelecionadaId = null; viagemSelecionadaDados = null;
+    document.getElementById('painel-lista-abertas').style.display = 'block';
+    document.getElementById('painel-form-chegada').style.display = 'none';
+  }
+
+  window.registrarChegada = async function(){
+    const dataChegada = document.getElementById('input-data-chegada').value;
+    const horaChegada = document.getElementById('input-hora-chegada').value;
+    const kmChegada = document.getElementById('input-km-chegada').value;
+    const obs = document.getElementById('input-obs-chegada').value.trim();
+
+    if(!kmChegada){ alert('Preencha o KM de chegada.'); return; }
+    if(Number(kmChegada) < viagemSelecionadaDados.kmSaida){
+      alert('O KM de chegada não pode ser menor que o KM de saída (' + viagemSelecionadaDados.kmSaida + ').');
+      return;
+    }
+
+    const kmRodado = Number(kmChegada) - viagemSelecionadaDados.kmSaida;
+    const rota = pontosRota(viagemSelecionadaDados);
+    if(localizacaoAtiva && posicaoAtual) rota.push(posicaoAtual);
+    if(watchGpsId != null){
+      navigator.geolocation.clearWatch(watchGpsId);
+      watchGpsId = null;
+    }
+
+    await updateDoc(doc(db, "viagens", viagemSelecionadaId), {
+      status: 'fechada',
+      dataChegada, horaChegada,
+      kmChegada: Number(kmChegada),
+      obsChegada: obs,
+      kmRodado,
+      rota,
+      temRota: rota.length >= 1
+    });
+
+    await updateDoc(doc(db, "veiculos", viagemSelecionadaDados.veiculoId), {
+      kmAtual: Number(kmChegada)
+    });
+
+    alert('Chegada registrada! ' + kmRodado + ' km rodados nesta viagem.');
+    cancelarSelecaoChegada();
+  }
+
+  window.excluirViagem = async function(id){
+    if(!confirm('Excluir esta viagem?')) return;
+    await deleteDoc(doc(db, "viagens", id));
+  }
+
+  // ---------- AGENDAMENTOS ----------
+  const refAgendamentos = collection(db, "agendamentos");
+
+  window.solicitarVeiculo = async function(){
+    const nome = document.getElementById('select-agendar-nome').value;
+    const data = document.getElementById('input-agendar-data').value;
+    const hora = document.getElementById('input-agendar-hora').value;
+    const veiculoId = document.getElementById('select-agendar-veiculo').value;
+    const destino = document.getElementById('input-agendar-destino').value.trim();
+    const obs = document.getElementById('input-agendar-obs').value.trim();
+
+    if(!nome || !data || !hora || !destino){
+      alert('Preencha nome, data, hora e destino.');
+      return;
+    }
+
+    const veiculoNome = veiculoId && window.veiculosMap[veiculoId]
+      ? window.veiculosMap[veiculoId].nome : 'Qualquer veículo';
+
+    await addDoc(refAgendamentos, {
+      nome, data, hora, veiculoId: veiculoId || null, veiculoNome,
+      destino, obs, status: 'pendente', criadoEm: Date.now()
+    });
+
+    if('Notification' in window && Notification.permission === 'granted'){
+      new Notification('Solicitação enviada', { body: `Veículo para ${destino} em ${fmtDataBR(data)}` });
+    }
+
+    alert('Solicitação enviada com sucesso!');
+    document.getElementById('select-agendar-nome').value = '';
+    document.getElementById('input-agendar-destino').value = '';
+    document.getElementById('input-agendar-obs').value = '';
+    document.getElementById('select-agendar-veiculo').value = '';
+  }
+
+  onSnapshot(query(refAgendamentos, orderBy("criadoEm")), (snap) => {
+    agendamentos = [];
+    snap.forEach(d => agendamentos.push({ id: d.id, ...d.data() }));
+    renderAgendamentos();
+    renderCalendarios();
+  });
+
+  function atualizarBadgeAgendamentos(){
+    const badge = document.getElementById('badge-agendamentos');
+    if(!badge) return;
+    const pendentes = agendamentos.filter(a => a.status === 'pendente').length;
+    if(pendentes > 0){
+      badge.textContent = pendentes > 99 ? '99+' : String(pendentes);
+      badge.classList.add('visivel');
+    } else {
+      badge.textContent = '0';
+      badge.classList.remove('visivel');
+    }
+  }
+
+  window.renderAgendamentos = function(){
+    const lista = document.getElementById('lista-agendamentos');
+    const vazio = document.getElementById('vazio-agendamentos');
+    if(!lista) return;
+    lista.innerHTML = '';
+    const itens = agendamentos.slice().reverse();
+    vazio.style.display = itens.length ? 'none' : 'block';
+    atualizarBadgeAgendamentos();
+
+    itens.forEach(a => {
+      const card = document.createElement('div');
+      const st = a.status || 'pendente';
+      card.className = 'agend-card ' + st;
+      const badgeTxt = st === 'aprovado' ? 'Liberado' : st === 'recusado' ? 'Cancelado' : 'Pendente';
+      const badgeCls = st === 'aprovado' ? 'aprovado' : st === 'recusado' ? 'recusado' : 'pendente';
+      const optsVeic = ['<option value="">— Selecione o veículo —</option>'].concat(
+        veiculos.map(v => {
+          const sel = a.veiculoId === v.id ? ' selected' : '';
+          return `<option value="${v.id}"${sel}>${esc(v.nome)}</option>`;
+        })
+      ).join('');
+
+      card.innerHTML = `
+        <div class="agend-topo">
+          <div class="nome">${esc(a.nome)}</div>
+          ${st === 'pendente' ? '<span class="agend-sino">🔔</span>' : ''}
+          <span class="agend-badge ${badgeCls}">${badgeTxt}</span>
+        </div>
+        <div class="meta">${fmtDataBR(a.data)} às ${esc(a.hora || '—')} — ${esc(a.destino || '—')}</div>
+        ${a.obs ? `<div class="obs">${esc(a.obs)}</div>` : ''}
+        ${st === 'pendente' ? `
+          <div class="agend-linha-acao">
+            <select id="sel-liberar-${a.id}">${optsVeic}</select>
+            <button class="btn-liberar" onclick="liberarAgendamento('${a.id}')">✓ Liberar</button>
+          </div>
+          <button class="btn-cancelar-agend" onclick="atualizarAgendamento('${a.id}','recusado')">✕ Cancelar</button>
+        ` : `
+          <div class="meta" style="margin-top:0;margin-bottom:8px;">Carro: ${esc(a.veiculoNome || '—')}</div>
+          <button class="btn-excluir-agend" onclick="excluirAgendamento('${a.id}')">🗑 Excluir</button>
+        `}`;
+      lista.appendChild(card);
+    });
+  }
+
+  window.liberarAgendamento = async function(id){
+    const sel = document.getElementById('sel-liberar-' + id);
+    const veiculoId = sel?.value || '';
+    if(!veiculoId){
+      alert('Selecione o veículo para liberar.');
+      return;
+    }
+    const veiculoNome = window.veiculosMap[veiculoId]?.nome || '';
+    await updateDoc(doc(db, "agendamentos", id), {
+      status: 'aprovado',
+      veiculoId,
+      veiculoNome
+    });
+    if('Notification' in window && Notification.permission === 'granted'){
+      new Notification('Veículo liberado', { body: `${veiculoNome} liberado para o agendamento.` });
+    }
+  }
+
+  window.atualizarAgendamento = async function(id, status){
+    await updateDoc(doc(db, "agendamentos", id), { status });
+  }
+
+  window.excluirAgendamento = async function(id){
+    if(!confirm('Excluir este agendamento?')) return;
+    await deleteDoc(doc(db, "agendamentos", id));
+  }
+
+  // ---------- RELATÓRIO ----------
+  function viagensFiltradas(){
+    const mot = document.getElementById('filtro-motorista')?.value || '';
+    const vei = document.getElementById('filtro-veiculo')?.value || '';
+    const ini = document.getElementById('filtro-inicio')?.value || '';
+    const fim = document.getElementById('filtro-fim')?.value || '';
+
+    return viagens.filter(v => {
+      if(mot && v.motorista !== mot) return false;
+      if(vei && v.veiculoId !== vei) return false;
+      const dataRef = v.dataSaida || '';
+      if(ini && dataRef < ini) return false;
+      if(fim && dataRef > fim) return false;
+      return true;
+    }).slice().reverse();
+  }
+
+  function renderRelatorio(){
+    if(!document.getElementById('stat-viagens')) return;
+    const filtradas = viagensFiltradas();
+    const fechadas = filtradas.filter(v => v.status === 'fechada');
+    const abertas = viagens.filter(v => v.status === 'aberta');
+    const kmTotal = fechadas.reduce((s, v) => s + (v.kmRodado || 0), 0);
+
+    const agora = new Date();
+    const mes = String(agora.getMonth()+1).padStart(2,'0');
+    const ano = agora.getFullYear();
+    const prefixoMes = `${ano}-${mes}`;
+    const kmMes = viagens
+      .filter(v => v.status === 'fechada' && (v.dataSaida || '').startsWith(prefixoMes))
+      .reduce((s, v) => s + (v.kmRodado || 0), 0);
+
+    document.getElementById('stat-viagens').textContent = filtradas.length;
+    document.getElementById('stat-km').textContent = kmTotal;
+    document.getElementById('stat-mes').textContent = kmMes;
+    document.getElementById('stat-abertas').textContent = abertas.length;
+
+    // Histórico por veículo
+    const hist = document.getElementById('hist-veiculos');
+    hist.innerHTML = '';
+    veiculos.forEach(veic => {
+      const vs = filtradas.filter(v => v.veiculoId === veic.id);
+      const km = vs.filter(v => v.status === 'fechada').reduce((s,v) => s + (v.kmRodado||0), 0);
+      const temRota = vs.some(v => pontosRota(v).length > 0);
+      const odo = veic.kmAtual != null ? veic.kmAtual : (veic.kmUltimaRevisao || 0);
+      const card = document.createElement('div');
+      card.className = 'hist-card';
+      card.innerHTML = `
+        <h4>${esc(veic.nome)}</h4>
+        <p>${vs.length} viagem${vs.length !== 1 ? 'ns' : ''}</p>
+        <p>${km} KM rodados</p>
+        <div class="odo">Odômetro: ${Number(odo).toLocaleString('pt-BR')} KM</div>
+        <div class="rota">📍 ${temRota ? 'Com rota registrada' : 'Sem rota registrada'}</div>`;
+      hist.appendChild(card);
+    });
+    if(veiculos.length === 0){
+      hist.innerHTML = '<div class="vazio" style="padding:12px">Cadastre veículos para ver o histórico.</div>';
+    }
+
+    // Tabela
+    const tbody = document.getElementById('tabela-viagens');
+    const vazio = document.getElementById('vazio-viagens-admin');
+    tbody.innerHTML = '';
+    vazio.style.display = filtradas.length ? 'none' : 'block';
+
+    filtradas.forEach(v => {
+      const obs = [v.obsSaida, v.obsChegada].filter(Boolean).join(' / ') || '—';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${esc(v.motorista)}</td>
+        <td>${esc(v.veiculoNome)}</td>
+        <td>${esc(v.destino)}</td>
+        <td>${fmtDataBR(v.dataSaida)}</td>
+        <td>${v.horaSaida || '—'}</td>
+        <td>${v.kmSaida ?? '—'}</td>
+        <td>${fmtDataBR(v.dataChegada)}</td>
+        <td>${v.horaChegada || '—'}</td>
+        <td>${v.kmChegada ?? '—'}</td>
+        <td><strong>${v.kmRodado ?? '—'}</strong></td>
+        <td>${esc(obs)}</td>
+        <td>${pontosRota(v).length ? `<button class="btn-rota" onclick="abrirMapaRota('${v.id}')">📍 Rota</button>` : '—'}</td>
+        <td><button class="btn-excluir" onclick="excluirViagem('${v.id}')">🗑 Excluir</button></td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  ['filtro-motorista','filtro-veiculo','filtro-inicio','filtro-fim'].forEach(id => {
+    document.getElementById(id)?.addEventListener('change', renderRelatorio);
+  });
+
+  window.limparFiltros = function(){
+    document.getElementById('filtro-motorista').value = '';
+    document.getElementById('filtro-veiculo').value = '';
+    document.getElementById('filtro-inicio').value = '';
+    document.getElementById('filtro-fim').value = '';
+    renderRelatorio();
+  }
+
+  window.exportarCSV = function(){
+    const dados = viagensFiltradas();
+    const header = ['Motorista','Veículo','Destino','Data Saída','Hora Saída','KM Saída','Data Chegada','Hora Chegada','KM Chegada','KM Rodado','Observações','Status'];
+    const rows = dados.map(v => [
+      v.motorista, v.veiculoNome, v.destino,
+      v.dataSaida, v.horaSaida, v.kmSaida,
+      v.dataChegada || '', v.horaChegada || '', v.kmChegada || '',
+      v.kmRodado || '', [v.obsSaida, v.obsChegada].filter(Boolean).join(' / '),
+      v.status
+    ].map(c => `"${String(c ?? '').replace(/"/g,'""')}"`).join(','));
+
+    const csv = '\uFEFF' + [header.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `viagens_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function apagarColecao(nome){
+    const snap = await getDocs(collection(db, nome));
+    const ops = snap.docs.map(d => deleteDoc(doc(db, nome, d.id)));
+    await Promise.all(ops);
+  }
+
+  window.limparTodasViagens = async function(){
+    if(!confirm('Apagar TODAS as viagens? Esta ação não pode ser desfeita.')) return;
+    await apagarColecao('viagens');
+    alert('Todas as viagens foram apagadas.');
+  }
+
+  window.resetarTudo = async function(){
+    if(!confirm('Resetar TUDO (viagens, agendamentos, motoristas e veículos)?')) return;
+    if(!confirm('Tem certeza absoluta? Todos os cadastros serão perdidos.')) return;
+    await Promise.all([
+      apagarColecao('viagens'),
+      apagarColecao('agendamentos'),
+      apagarColecao('motoristas'),
+      apagarColecao('veiculos')
+    ]);
+    alert('Sistema resetado.');
+  }
+
+  // ---------- CALENDÁRIO ----------
+  const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+  window.mudarMesCal = function(veiculoId, delta){
+    calMesOffset[veiculoId] = (calMesOffset[veiculoId] || 0) + delta;
+    renderCalendarios();
+  }
+
+  function reservasDoDia(veicId, iso){
+    const lista = [];
+    const veicNome = window.veiculosMap[veicId]?.nome || '';
+
+    agendamentos.forEach(a => {
+      if(a.status === 'recusado') return;
+      if(a.veiculoId !== veicId) return;
+      if(a.data !== iso) return;
+      lista.push({
+        tipo: a.status === 'aprovado' ? 'Agendamento liberado' : 'Agendamento pendente',
+        pessoa: a.nome || '—',
+        data: a.data,
+        hora: a.hora || '—',
+        local: a.destino || '—',
+        carro: a.veiculoNome || veicNome || '—'
+      });
+    });
+
+    viagens.forEach(v => {
+      if(v.veiculoId !== veicId) return;
+      if(v.dataSaida !== iso && v.dataChegada !== iso) return;
+      lista.push({
+        tipo: v.status === 'aberta' ? 'Viagem em aberto' : 'Viagem',
+        pessoa: v.motorista || '—',
+        data: v.dataSaida || iso,
+        hora: v.horaSaida || '—',
+        local: v.destino || '—',
+        carro: v.veiculoNome || veicNome || '—'
+      });
+    });
+
+    return lista;
+  }
+
+  window.clicarDiaCal = function(veiculoId, iso, ocupado, origem){
+    const detalhe = document.getElementById(`cal-detalhe-${origem}-${veiculoId}`);
+    const card = detalhe?.closest('.cal-bloco');
+    const lista = detalhe?.closest('.cal-lista');
+
+    if(lista){
+      lista.querySelectorAll('.cal-bloco.expandido').forEach(b => {
+        if(b !== card) b.classList.remove('expandido');
+      });
+      lista.querySelectorAll('.cal-detalhe.visivel').forEach(d => {
+        if(d !== detalhe){
+          d.classList.remove('visivel');
+          d.innerHTML = '';
+        }
+      });
+      lista.querySelectorAll('.cal-dia.selecionado').forEach(el => el.classList.remove('selecionado'));
+    }
+
+    if(card){
+      const diaEl = card.querySelector(`.cal-dia[data-iso="${iso}"]`);
+      if(diaEl) diaEl.classList.add('selecionado');
+    }
+
+    if(ocupado){
+      const reservas = reservasDoDia(veiculoId, iso);
+      if(!detalhe) return;
+      if(reservas.length === 0){
+        detalhe.innerHTML = `<h4>Dia ${fmtDataBR(iso)}</h4><div class="cal-detalhe-vazio">Nenhuma informação encontrada para este dia.</div>`;
+      } else {
+        detalhe.innerHTML = `<h4>Reservas — ${fmtDataBR(iso)}</h4>` + reservas.map(r => `
+          <div class="cal-reserva">
+            <div class="tipo">${esc(r.tipo)}</div>
+            <div class="linha"><strong>Quem:</strong> ${esc(r.pessoa)}</div>
+            <div class="linha"><strong>Data:</strong> ${fmtDataBR(r.data)}</div>
+            <div class="linha"><strong>Hora:</strong> ${esc(r.hora)}</div>
+            <div class="linha"><strong>Local:</strong> ${esc(r.local)}</div>
+            <div class="linha"><strong>Carro:</strong> ${esc(r.carro)}</div>
+          </div>`).join('');
+      }
+      detalhe.classList.add('visivel');
+      if(card) card.classList.add('expandido');
+      detalhe.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      return;
+    }
+
+    if(detalhe){
+      detalhe.classList.remove('visivel');
+      detalhe.innerHTML = '';
+    }
+    if(card) card.classList.remove('expandido');
+
+    if(origem === 'agendar'){
+      document.getElementById('input-agendar-data').value = iso;
+      document.getElementById('select-agendar-veiculo').value = veiculoId;
+      const painel = document.querySelector('#tela-agendar .painel');
+      if(painel) painel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  function diasOcupadosVeiculo(veicId){
+    const ocupados = new Set();
+    viagens.forEach(v => {
+      if(v.veiculoId !== veicId) return;
+      if(v.dataSaida) ocupados.add(v.dataSaida);
+      if(v.dataChegada) ocupados.add(v.dataChegada);
+    });
+    agendamentos.forEach(a => {
+      if(a.status === 'recusado') return;
+      if(!a.veiculoId || a.veiculoId !== veicId) return;
+      if(a.data) ocupados.add(a.data);
+    });
+    return ocupados;
+  }
+
+  function montarCardCalendario(veic, origem){
+    const hoje = new Date();
+    const hojeStr = hoje.toISOString().slice(0,10);
+    const offset = calMesOffset[veic.id] || 0;
+    const base = new Date(hoje.getFullYear(), hoje.getMonth() + offset, 1);
+    const ano = base.getFullYear();
+    const mes = base.getMonth();
+    const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+    const primeiroDow = new Date(ano, mes, 1).getDay();
+    const ocupados = diasOcupadosVeiculo(veic.id);
+
+    let grid = '';
+    ['D','S','T','Q','Q','S','S'].forEach(d => {
+      grid += `<div class="cal-dow">${d}</div>`;
+    });
+    for(let i = 0; i < primeiroDow; i++) grid += `<div class="cal-dia vazio">&nbsp;</div>`;
+    for(let dia = 1; dia <= diasNoMes; dia++){
+      const iso = `${ano}-${String(mes+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+      const estaOcupado = ocupados.has(iso);
+      let cls = estaOcupado ? 'ocupado' : 'livre';
+      if(iso === hojeStr) cls = 'hoje' + (estaOcupado ? ' ocupado' : '');
+      const clicavel = estaOcupado || origem === 'agendar';
+      grid += `<div class="cal-dia ${cls}${clicavel ? ' clicavel' : ''}" data-iso="${iso}" onclick="clicarDiaCal('${veic.id}','${iso}',${estaOcupado},'${origem}')">${dia}</div>`;
+    }
+
+    const bloco = document.createElement('div');
+    bloco.className = 'cal-bloco';
+    bloco.innerHTML = `
+      <div class="cal-veiculo">
+        <div class="cal-veiculo-header">
+          <div class="nome">🚚 ${esc(veic.nome)}</div>
+          <div class="cal-nav">
+            <button type="button" onclick="event.stopPropagation();mudarMesCal('${veic.id}', -1)">‹</button>
+            <span>${MESES[mes].slice(0,3)} ${ano}</span>
+            <button type="button" onclick="event.stopPropagation();mudarMesCal('${veic.id}', 1)">›</button>
+          </div>
+        </div>
+        <div class="cal-grid">${grid}</div>
+        <div class="cal-detalhe" id="cal-detalhe-${origem}-${veic.id}"></div>
+      </div>`;
+    return bloco;
+  }
+
+  function preencherListaCalendarios(containerId, filtroId, origem){
+    const container = document.getElementById(containerId);
+    if(!container) return;
+    const filtro = document.getElementById(filtroId)?.value || '';
+    const lista = filtro ? veiculos.filter(v => v.id === filtro) : veiculos;
+    container.innerHTML = '';
+
+    if(lista.length === 0){
+      container.innerHTML = '<div class="vazio" style="background:#fff;border-radius:14px;padding:20px;">Cadastre veículos para ver o calendário.</div>';
+      return;
+    }
+    lista.forEach(veic => container.appendChild(montarCardCalendario(veic, origem)));
+  }
+
+  window.renderCalendarios = function(){
+    preencherListaCalendarios('lista-calendarios', 'filtro-cal-veiculo', 'admin');
+    preencherListaCalendarios('lista-calendarios-agendar', 'filtro-cal-agendar', 'agendar');
+  }
+
+  function esc(str){
+    return String(str ?? '')
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;');
+  }
+
+  // Enter no login
+  document.getElementById('login-senha')?.addEventListener('keydown', e => {
+    if(e.key === 'Enter') fazerLogin();
+  });
+</script>
+</body>
+</html>
