@@ -46,30 +46,41 @@
   .tela-centro.ativa{ display:flex; }
 
   .cartao{
-    background:#fff; border-radius:20px; padding:32px 24px;
-    width:100%; max-width:400px; text-align:center;
-    box-shadow: 0 20px 50px rgba(0,0,0,.35);
+    background:#fff; border-radius:22px; padding:30px 22px 26px;
+    width:100%; max-width:420px; text-align:center;
+    box-shadow: 0 24px 60px rgba(0,0,0,.28);
   }
   .icone-brand{
-    width:56px; height:56px; background:var(--vermelho); border-radius:14px;
-    display:flex; align-items:center; justify-content:center; margin:0 auto 14px;
+    width:62px; height:62px; background:linear-gradient(135deg, var(--vermelho) 0%, #d14d42 100%);
+    border-radius:18px; display:flex; align-items:center; justify-content:center; margin:0 auto 16px;
+    box-shadow:0 12px 20px rgba(192,57,43,.22);
   }
-  .icone-brand svg{ width:28px; height:28px; fill:#fff; }
   .marca{ font-size:22px; font-weight:800; letter-spacing:.5px; color:var(--azul-noite); }
-  .marca-sub{ color:var(--cinza); font-size:12px; text-transform:uppercase; letter-spacing:1px; margin-top:2px; }
-  .marca-sub2{ color:var(--cinza); font-size:13px; text-transform:uppercase; letter-spacing:.8px; margin:4px 0 28px; }
+  .marca-sub2{ color:var(--cinza); font-size:12px; text-transform:uppercase; letter-spacing:1px; margin-top:6px; margin-bottom:24px; }
 
   .botao-menu{
-    display:flex; align-items:center; gap:14px; width:100%;
-    padding:16px 18px; margin-bottom:12px; border:none; border-radius:14px;
-    font-size:16px; font-weight:600; cursor:pointer; color:#fff; text-align:left;
+    display:flex; align-items:center; justify-content:center; gap:12px;
+    width:100%; padding:16px 18px; margin-bottom:12px; border:none; border-radius:16px;
+    font-size:16px; font-weight:700; cursor:pointer; color:#fff; text-align:center;
+    letter-spacing:.2px; box-shadow:0 10px 22px rgba(15,23,42,.12);
+    transition:transform .15s ease, box-shadow .15s ease, filter .15s ease;
   }
+  .botao-menu:hover{ filter:brightness(1.03); }
+  .botao-menu:active{ transform:scale(.98); }
   .botao-menu svg{ width:22px; height:22px; fill:currentColor; flex-shrink:0; }
-  .botao-menu.motorista{ background: var(--vermelho); }
-  .botao-menu.agendar{ background: var(--azul); }
-  .botao-menu.admin{ background: var(--azul-noite); }
-  .botao-menu.manual{ background:#e9e9ee; color:var(--texto); }
-  .botao-menu:active{ transform: scale(.98); }
+  .botao-menu.motorista{ background: linear-gradient(135deg, var(--vermelho) 0%, #d65146 100%); }
+  .botao-menu.agendar{ background: linear-gradient(135deg, var(--azul) 0%, #5a7bb8 100%); }
+  .botao-menu.admin{ background: linear-gradient(135deg, var(--azul-noite) 0%, #2d425d 100%); }
+  .botao-menu.manual{ background: linear-gradient(135deg, #eef2f7 0%, #dde5f0 100%); color:var(--texto); }
+  .botao-menu.motorista, .botao-menu.agendar, .botao-menu.admin{ position:relative; overflow:hidden; }
+  .botao-menu.motorista::before, .botao-menu.agendar::before, .botao-menu.admin::before{
+    content:""; position:absolute; inset:0; background:rgba(255,255,255,.08); transform:translateX(-100%);
+    transition:transform .25s ease;
+  }
+  .botao-menu.motorista:hover::before, .botao-menu.agendar:hover::before, .botao-menu.admin:hover::before{
+    transform:translateX(100%);
+  }
+
   #status{ margin-top:16px; font-size:12px; color:var(--cinza); }
 
   /* Login */
@@ -534,7 +545,7 @@
         Área do Motorista
       </button>
       <button class="botao-menu agendar" onclick="mostrarTela('tela-agendar')">
-        <svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5v-5z"/></svg>
+        <svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm-7 5h5v5h-5v-5z"/></svg>
         Agendar Veículo
       </button>
       <button class="botao-menu admin" onclick="mostrarTela('tela-login')">
