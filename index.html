@@ -2001,14 +2001,22 @@
 
   function atualizarBadgeAgendamentos(){
     const badge = document.getElementById('badge-agendamentos');
-    if(!badge) return;
     const pendentes = agendamentos.filter(a => a.status === 'pendente').length;
-    if(pendentes > 0){
-      badge.textContent = pendentes > 99 ? '99+' : String(pendentes);
-      badge.classList.add('visivel');
-    } else {
-      badge.textContent = '0';
-      badge.classList.remove('visivel');
+
+    if(badge){
+      if(pendentes > 0){
+        badge.textContent = pendentes > 99 ? '99+' : String(pendentes);
+        badge.classList.add('visivel');
+      } else {
+        badge.textContent = '0';
+        badge.classList.remove('visivel');
+      }
+    }
+
+    // Aviso no ícone do app (só funciona quando instalado como app / PWA)
+    if('setAppBadge' in navigator){
+      if(pendentes > 0) navigator.setAppBadge(pendentes).catch(() => {});
+      else navigator.clearAppBadge().catch(() => {});
     }
   }
 
