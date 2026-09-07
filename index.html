@@ -850,7 +850,7 @@
         <div class="manual-bloco">
           <h3>Área Administrativa</h3>
           <ul>
-            <li>Login: usuário <strong>admin</strong> / senha <strong>admin</strong></li>
+            <li>Login: use o e-mail e a senha cadastrados pelo administrador</li>
             <li><strong>Viagens:</strong> relatório, filtros e exportação CSV</li>
             <li><strong>Agendamentos:</strong> aprovar ou recusar pedidos</li>
             <li><strong>Calendário:</strong> ver disponibilidade por veículo</li>
@@ -1963,7 +1963,6 @@
     iniciarEscutaViagens();
     iniciarEscutaAgendamentos();
   }
-  atualizarEmpresaAtual(); // primeira chamada, cobre o caso de empresa vinda pela URL
 
   function notificarLiberacao(agendamento){
     const veiculo = agendamento.veiculoNome || 'Veículo';
@@ -2446,6 +2445,10 @@
   document.getElementById('login-senha')?.addEventListener('keydown', e => {
     if(e.key === 'Enter') fazerLogin();
   });
+
+  // Só agora, com todas as funções já definidas, identificamos a empresa atual
+  // (pela URL ?empresa=... ou por login já existente) e carregamos os dados.
+  atualizarEmpresaAtual();
 </script>
 </body>
 </html>
