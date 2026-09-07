@@ -1172,8 +1172,11 @@
   function atualizarEmpresaAtual(){
     if(empresaPelaUrl){
       empresaIdAtual = empresaPelaUrl; // o link do motorista sempre manda
+      localStorage.setItem('frotaEmpresaId', empresaPelaUrl); // guarda para quando o app for instalado (PWA perde o ?empresa= da URL)
     } else if(auth.currentUser){
       empresaIdAtual = auth.currentUser.uid;
+    } else if(localStorage.getItem('frotaEmpresaId')){
+      empresaIdAtual = localStorage.getItem('frotaEmpresaId'); // recupera a empresa salva anteriormente (app instalado)
     } else {
       empresaIdAtual = null;
     }
