@@ -1,4 +1,4 @@
-const CACHE_NAME = 'controle-frota-v4';
+const CACHE_NAME = 'controle-frota-v5';
 const APP_SHELL = [
   './',
   './index.html',
